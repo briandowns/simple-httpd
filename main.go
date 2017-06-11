@@ -7,7 +7,6 @@ import (
 	"html/template"
 	"io"
 	"log"
-	"mime"
 	"net/http"
 	"net/url"
 	"os"
@@ -20,6 +19,7 @@ import (
 
 const version = "0.1"
 const name = "micro-httpd"
+const indexHTMLFile = "index.html"
 
 type resourceType byte
 
@@ -79,11 +79,17 @@ func setHeaders(rt resourceType, file *os.File, statInfo os.FileInfo, w http.Res
 	case directoryResource:
 		w.Header().Set("Content-type", "text/html; charset=UTF-8")
 	case fileResource:
-		if mimetype := mime.TypeByExtension(path.Ext(file.Name())); mimetype != "" {
-			w.Header().Set("Content-type", mimetype)
+		if path.Ext(file.Name()) == "html" || path.Ext(file.Name()) == "htm" {
+			fmt.Println(path.Ext(file.Name()))
+			w.Header().Set("Content-type", "text/html")
 		} else {
 			w.Header().Set("Content-type", "application/octet-stream")
 		}
+		// if mimetype := mime.TypeByExtension(path.Ext(file.Name())); mimetype != "" {
+		// 	w.Header().Set("Content-type", "text/html")
+		// } else {
+		// 	w.Header().Set("Content-type", "application/octet-stream")
+		// }
 		w.Header().Set("Content-Length", fmt.Sprintf("%v", statInfo.Size()))
 	}
 }
