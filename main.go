@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"html/template"
@@ -17,12 +18,14 @@ import (
 )
 
 const version = "0.1"
+const name = "micro-httpd"
 
 const (
 	httpContentType        = "Content-type"
 	textHTMLContentType    = "text/html"
 	octetStreamContentType = "application/octet-stream"
 	charsetUTF8            = "charset=UTF-8"
+	xPoweredBy             = "X-Powered-By"
 )
 
 // Data holds the data passed to the template engine
@@ -40,10 +43,30 @@ type httpServer struct {
 	template  *template.Template
 }
 
+// requestData
+type requestData struct {
+	Timestamp string `json:"timestamp"`
+	Method    string `json:"method"`
+	Path      string `json:"path"`
+	Status    int    `json:"status"`
+	UserAgent string `json:"user_agent"`
+	Error     string `json:"error,omitempty"`
+}
+
+// String
+func (r requestData) String() string {
+	b, err := json.Marshal(r)
+	if err != nil {
+		return ""
+	}
+
+	return string(b)
+}
+
 // start starts the server
 func (h *httpServer) start() {
 	http.Handle("/", h)
-	log.Printf("Listening on port %s\n", h.Port)
+	fmt.Printf("Listening on port %s\n", h.Port)
 	http.ListenAndServe(":"+h.Port, nil)
 }
 
@@ -56,13 +79,23 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		}
 	}()
 
+	rd := requestData{
+		Timestamp: time.Now().Format("2006-01-02 15:04:05"),
+		Method:    req.Method,
+		Path:      req.RequestURI,
+		UserAgent: req.UserAgent(),
+	}
+
 	if req.RequestURI == "/favicon.ico" {
 		return
 	}
 
 	queryStr, err := url.QueryUnescape(req.RequestURI)
 	if err != nil {
-		log.Println(err)
+		rd.Error = err.Error()
+		rd.Status = http.StatusInternalServerError
+		fmt.Println(rd.String())
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
@@ -70,24 +103,31 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 	file, err := os.Open(fullpath)
 	if err != nil {
-		log.Println(err)
+		rd.Error = err.Error()
+		rd.Status = http.StatusNotFound
+		fmt.Println(rd.String())
 		http.NotFound(w, req)
 		return
 	}
 
 	stat, err := file.Stat()
 	if err != nil {
-		log.Println(err)
+		rd.Error = err.Error()
+		rd.Status = http.StatusInternalServerError
+		fmt.Println(rd.String())
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	if stat.IsDir() {
 		w.Header().Set(httpContentType, textHTMLContentType+"; "+charsetUTF8)
+		w.Header().Add(xPoweredBy, name)
 
 		contents, err := file.Readdir(-1)
 		if err != nil {
-			log.Println(err)
+			rd.Status = http.StatusInternalServerError
+			rd.Error = err.Error()
+			fmt.Println(rd.String())
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -113,6 +153,7 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			"parentDirectory": path.Dir(queryStr),
 		})
 
+		fmt.Println(rd.String())
 		return
 	}
 
@@ -124,12 +165,17 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 	statinfo, err := file.Stat()
 	if err != nil {
-		log.Println(err)
+		rd.Status = http.StatusInternalServerError
+		rd.Error = err.Error()
+		fmt.Println(rd.String())
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Length", fmt.Sprintf("%v", statinfo.Size()))
 	io.Copy(w, file)
+
+	rd.Status = http.StatusOK
+	fmt.Println(rd.String())
 
 	return
 }
@@ -149,13 +195,13 @@ func main() {
 	h := httpServer{
 		Port:      strconv.Itoa(port),
 		Directory: pwd,
-		template:  template.Must(template.New("index").Parse(tmpl)),
+		template:  template.Must(template.New("listing").Parse(htmlTemplate)),
 	}
 
 	h.start()
 }
 
-const tmpl = `
+const htmlTemplate = `
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -191,6 +237,6 @@ const tmpl = `
   </body>
   <hr>
   <footer>
-    <p>micro-httpd / {{.version}} on port {{.port}}</p>
+    <p>Powered By: micro-httpd / {{.version}} on port {{.port}}</p>
   </footer>
 </html>`
