@@ -26,3 +26,5 @@ _testmain.go
 
 .idea
 *.iml
+
+micro_httpd

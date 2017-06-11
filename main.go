@@ -253,6 +253,6 @@ const htmlTemplate = `
   </body>
   <hr>
   <footer>
-    <p>micro-httpd / {{.version}} - {{.goVersion}}</p>
+    <p>micro-httpd {{.version}} / {{.goVersion}}</p>
   </footer>
 </html>`
