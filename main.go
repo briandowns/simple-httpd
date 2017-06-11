@@ -13,6 +13,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"time"
 )
@@ -20,12 +21,11 @@ import (
 const version = "0.1"
 const name = "micro-httpd"
 
+type resourceType byte
+
 const (
-	httpContentType        = "Content-type"
-	textHTMLContentType    = "text/html"
-	octetStreamContentType = "application/octet-stream"
-	charsetUTF8            = "charset=UTF-8"
-	xPoweredBy             = "X-Powered-By"
+	directoryResource resourceType = iota
+	fileResource
 )
 
 // Data holds the data passed to the template engine
@@ -53,7 +53,7 @@ type requestData struct {
 	Error     string `json:"error,omitempty"`
 }
 
-// String
+// String stringifies the the requestData struct
 func (r requestData) String() string {
 	b, err := json.Marshal(r)
 	if err != nil {
@@ -66,8 +66,26 @@ func (r requestData) String() string {
 // start starts the server
 func (h *httpServer) start() {
 	http.Handle("/", h)
-	fmt.Printf("Listening on port %s\n", h.Port)
+	fmt.Printf("Serving HTTP on 0.0.0.0 port %s ...\n", h.Port)
 	http.ListenAndServe(":"+h.Port, nil)
+}
+
+// setHeaders sets the response headers
+func setHeaders(rt resourceType, file *os.File, statInfo os.FileInfo, w http.ResponseWriter) {
+	w.Header().Set("Server", name+"/"+version)
+	w.Header().Add("Date", time.Now().Format(time.RFC822))
+
+	switch rt {
+	case directoryResource:
+		w.Header().Set("Content-type", "text/html; charset=UTF-8")
+	case fileResource:
+		if mimetype := mime.TypeByExtension(path.Ext(file.Name())); mimetype != "" {
+			w.Header().Set("Content-type", mimetype)
+		} else {
+			w.Header().Set("Content-type", "application/octet-stream")
+		}
+		w.Header().Set("Content-Length", fmt.Sprintf("%v", statInfo.Size()))
+	}
 }
 
 // ServeHTTP handles inbound requests
@@ -84,10 +102,6 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		Method:    req.Method,
 		Path:      req.RequestURI,
 		UserAgent: req.UserAgent(),
-	}
-
-	if req.RequestURI == "/favicon.ico" {
-		return
 	}
 
 	queryStr, err := url.QueryUnescape(req.RequestURI)
@@ -120,8 +134,7 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 
 	if stat.IsDir() {
-		w.Header().Set(httpContentType, textHTMLContentType+"; "+charsetUTF8)
-		w.Header().Add(xPoweredBy, name)
+		setHeaders(directoryResource, nil, stat, w)
 
 		contents, err := file.Readdir(-1)
 		if err != nil {
@@ -140,16 +153,20 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 				URI:          path.Join(queryStr, entry.Name()),
 			}
 			if entry.IsDir() {
+				file.Name = entry.Name() + "/"
 				file.Size = entry.Size()
 			}
 			files = append(files, file)
 		}
+
+		rd.Status = http.StatusOK
 
 		h.template.Execute(w, map[string]interface{}{
 			"files":           files,
 			"version":         version,
 			"port":            h.Port,
 			"relativePath":    queryStr,
+			"goVersion":       runtime.Version(),
 			"parentDirectory": path.Dir(queryStr),
 		})
 
@@ -157,13 +174,7 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if mimetype := mime.TypeByExtension(path.Ext(file.Name())); mimetype != "" {
-		w.Header().Set(httpContentType, mimetype)
-	} else {
-		w.Header().Set(httpContentType, octetStreamContentType)
-	}
-
-	statinfo, err := file.Stat()
+	statInfo, err := file.Stat()
 	if err != nil {
 		rd.Status = http.StatusInternalServerError
 		rd.Error = err.Error()
@@ -171,7 +182,9 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	w.Header().Set("Content-Length", fmt.Sprintf("%v", statinfo.Size()))
+
+	setHeaders(fileResource, file, statInfo, w)
+
 	io.Copy(w, file)
 
 	rd.Status = http.StatusOK
@@ -182,8 +195,10 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 func main() {
 	var port int
+	var http2 bool
 
 	flag.IntVar(&port, "p", 8080, "bind port")
+	flag.BoolVar(&http2, "2", false, "enable HTTP/2")
 	flag.Parse()
 
 	pwd, err := os.Getwd()
@@ -207,19 +222,20 @@ const htmlTemplate = `
   <head>
     <meta charset="utf-8">
     <title>micro-httpd</title>
+	<style>
+		table, th, td {
+    	border: 1px;
+	  }
+	</style>
   </head>
   <body>
-    <h1>Index of {{.relativePath}}</h1>
-    <table style="text-align: left;">
+    <h2>Directory listing for {{.relativePath}}</h2>
+	<hr>
+    <table>
 	  <tr>
-        <th>Name</th>
-		<th>Last Modified</th>
-		<th>Size</th>
-	  </tr>
-	  <tr>
-	  	<td><hr></td>
-	    <td><hr></td>
-		<td><hr></td>
+        <td><b>Name</b></td>
+		<td><b>Last Modified</b></td>
+		<td><b>Size</b></td>
 	  </tr>
 	  <tr>
 	    <td><a href="{{.parentDirectory}}">{{.parentDirectory}}</td>
@@ -237,6 +253,6 @@ const htmlTemplate = `
   </body>
   <hr>
   <footer>
-    <p>Powered By: micro-httpd / {{.version}} on port {{.port}}</p>
+    <p>micro-httpd / {{.version}} - {{.goVersion}}</p>
   </footer>
 </html>`
