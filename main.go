@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -8,27 +9,25 @@ import (
 	"io"
 	"log"
 	"mime"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
+	"os/user"
 	"path"
 	"path/filepath"
 	"runtime"
 	"strconv"
 	"time"
+
+	"golang.org/x/crypto/acme/autocert"
+	"golang.org/x/net/http2"
 )
 
 const version = "0.1"
 const name = "micro-httpd"
 const indexHTMLFile = "index.html"
 const pathSeperator = "/"
-
-type resourceType byte
-
-const (
-	directoryResource resourceType = iota
-	fileResource
-)
 
 // Data holds the data passed to the template engine
 type Data struct {
@@ -195,13 +194,88 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	return
 }
 
+// serveTLS
+func serveTLS(domain string) error {
+	u, err := user.Current()
+	if err != nil {
+		return err
+	}
+	cacheDir := u.HomeDir + "/.autocert"
+	if err := os.MkdirAll(cacheDir, 0700); err != nil {
+		return err
+	}
+
+	m := autocert.Manager{
+		Cache:      autocert.DirCache(cacheDir),
+		Prompt:     autocert.AcceptTOS,
+		HostPolicy: autocert.HostWhitelist(domain),
+	}
+
+	srv := &http.Server{
+		TLSConfig: &tls.Config{
+			GetCertificate: m.GetCertificate,
+		},
+	}
+
+	http2.ConfigureServer(srv, &http2.Server{
+		NewWriteScheduler: func() http2.WriteScheduler {
+			return http2.NewPriorityWriteScheduler(nil)
+		},
+	})
+
+	ln, err := net.Listen("tcp", ":443")
+	if err != nil {
+		return err
+	}
+
+	return srv.Serve(tls.NewListener(keepAliveListener{ln.(*net.TCPListener)}, srv.TLSConfig))
+}
+
+// keepAliveListener
+type keepAliveListener struct {
+	*net.TCPListener
+}
+
+// Accept
+func (k keepAliveListener) Accept() (net.Conn, error) {
+	tc, err := k.AcceptTCP()
+	if err != nil {
+		return nil, err
+	}
+
+	tc.SetKeepAlive(true)
+	tc.SetKeepAlivePeriod(time.Minute * 3)
+
+	return tc, nil
+}
+
 func main() {
 	var port int
-	var http2 bool
+	var tls bool
+	var domain string
 
 	flag.IntVar(&port, "p", 8080, "bind port")
-	flag.BoolVar(&http2, "2", false, "enable HTTP/2")
+	flag.BoolVar(&tls, "t", false, "enable TLS (default :443)")
+	flag.StringVar(&domain, "d", "", "domain name to use with TLS")
 	flag.Parse()
+
+	errChan := make(chan error, 2)
+
+	var srv http.Server
+
+	if tls {
+		if domain == "" {
+			flag.Usage()
+			os.Exit(1)
+		}
+
+		http2.ConfigureServer(&srv, &http2.Server{})
+
+		go func() {
+			fmt.Printf("Serving HTTPS on 0.0.0.0 port 443 ...\n")
+			errChan <- serveTLS(domain)
+		}()
+	}
 
 	pwd, err := os.Getwd()
 	if err != nil {
@@ -209,13 +283,20 @@ func main() {
 		os.Exit(1)
 	}
 
-	h := httpServer{
+	h := &httpServer{
 		Port:      strconv.Itoa(port),
 		Directory: pwd,
 		template:  template.Must(template.New("listing").Parse(htmlTemplate)),
 	}
 
-	h.start()
+	go func() {
+		http.Handle("/", h)
+		fmt.Printf("Serving HTTP on 0.0.0.0 port %s ...\n", h.Port)
+		errChan <- http.ListenAndServe(":"+h.Port, nil)
+	}()
+
+	log.Fatalln(<-errChan)
+
 }
 
 const htmlTemplate = `

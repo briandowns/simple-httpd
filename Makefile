@@ -1,8 +1,11 @@
 build: clean
 	go build 
 
+deps:
+	dep ensure
+
 test:
-	go test
+	go test -v .
 
 clean:
 	go clean
