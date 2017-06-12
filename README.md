@@ -4,6 +4,16 @@ micro-httpd is aimed to be a simple replacement for using `python -M SimpleHTTPS
 
 The HTML output is a mix of the Python module layout and of an Apache directory listing layout. 
 
+## Installation
+
+```
+go install github.com/briandowns/micro-httpd
+```
+or
+```
+make install
+```
+
 ## Usage
 
 ```
