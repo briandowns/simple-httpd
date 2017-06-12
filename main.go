@@ -44,15 +44,16 @@ type httpServer struct {
 	template  *template.Template
 }
 
-// requestData
+// requestData holds data about the request for logging
 type requestData struct {
-	Timestamp  string `json:"timestamp"`
-	Method     string `json:"method"`
-	RemoteAddr string `json:"remote_addr"`
-	Path       string `json:"path"`
-	Status     int    `json:"status"`
-	UserAgent  string `json:"user_agent"`
-	Error      string `json:"error,omitempty"`
+	Timestamp   string `json:"timestamp,omitempty"`
+	Method      string `json:"method,omitempty"`
+	HTTPVersion string `json:"http_version,omitempty"`
+	RemoteAddr  string `json:"remote_addr,omitempty"`
+	Path        string `json:"path,omitempty"`
+	Status      int    `json:"status,omitempty"`
+	UserAgent   string `json:"user_agent,omitempty"`
+	Error       string `json:"error,omitempty,omitempty"`
 }
 
 // String stringifies the the requestData struct
@@ -247,7 +248,7 @@ func main() {
 	var tls bool
 	var domain string
 
-	flag.IntVar(&port, "p", 8080, "bind port")
+	flag.IntVar(&port, "p", 8000, "bind port")
 	flag.BoolVar(&tls, "t", false, "enable TLS (default :443)")
 	flag.StringVar(&domain, "d", "", "domain name to use with TLS")
 	flag.Parse()
@@ -276,13 +277,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	h := &httpServer{
-		Port:      strconv.Itoa(port),
-		Directory: pwd,
-		template:  template.Must(template.New("listing").Parse(htmlTemplate)),
-	}
-
 	go func() {
+		h := &httpServer{
+			Port:      strconv.Itoa(port),
+			Directory: pwd,
+			template:  template.Must(template.New("listing").Parse(htmlTemplate)),
+		}
+
 		http.Handle("/", h)
 		fmt.Printf("Serving HTTP on 0.0.0.0 port %s ...\n", h.Port)
 		errChan <- http.ListenAndServe(":"+h.Port, nil)
