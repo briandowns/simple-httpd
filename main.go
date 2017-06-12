@@ -70,6 +70,11 @@ func (r requestData) String() string {
 	return string(b)
 }
 
+func setHeaders(w http.ResponseWriter) {
+	w.Header().Set("Server", name+pathSeperator+version)
+	w.Header().Add("Date", time.Now().Format(time.RFC822))
+}
+
 // ServeHTTP handles inbound requests
 func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	defer func() {
@@ -116,6 +121,8 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	setHeaders(w)
+
 	if stat.IsDir() {
 		contents, err := file.Readdir(-1)
 		if err != nil {
@@ -157,8 +164,6 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 		rd.Status = http.StatusOK
 
-		w.Header().Set("Server", name+pathSeperator+version)
-		w.Header().Add("Date", time.Now().Format(time.RFC822))
 		w.Header().Set("Content-type", "text/html; charset=UTF-8")
 
 		h.template.Execute(w, map[string]interface{}{
@@ -174,9 +179,6 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 		return
 	}
-
-	w.Header().Set("Server", name+pathSeperator+version)
-	w.Header().Add("Date", time.Now().Format(time.RFC822))
 
 	if mimetype := mime.TypeByExtension(path.Ext(file.Name())); mimetype != "" {
 		fmt.Println(mimetype)
@@ -194,7 +196,7 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 }
 
 // serveTLS
-func serveTLS(domain string) error {
+func serveTLS(domain, port string) error {
 	u, err := user.Current()
 	if err != nil {
 		return err
@@ -222,7 +224,7 @@ func serveTLS(domain string) error {
 		},
 	})
 
-	ln, err := net.Listen("tcp", ":443")
+	ln, err := net.Listen("tcp", port)
 	if err != nil {
 		return err
 	}
@@ -253,7 +255,7 @@ func main() {
 	var tls string
 
 	flag.IntVar(&port, "p", 8000, "bind port")
-	flag.StringVar(&tls, "t", "", "enable TLS with domain name to use with TLS")
+	flag.StringVar(&tls, "t", "", "enable TLS with the given domain name to use with TLS. Port = port + 1 ")
 	flag.Parse()
 
 	errChan := make(chan error, 2)
@@ -263,9 +265,11 @@ func main() {
 	if tls != "" {
 		http2.ConfigureServer(&srv, &http2.Server{})
 
+		tlsPort := strconv.Itoa(port + 1)
+
 		go func() {
-			fmt.Printf("Serving HTTPS on 0.0.0.0 port 443 ...\n")
-			errChan <- serveTLS(tls)
+			fmt.Printf("Serving HTTPS on 0.0.0.0 port %s ...\n", tlsPort)
+			errChan <- serveTLS(tls, tlsPort)
 		}()
 	}
 

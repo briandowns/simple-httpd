@@ -16,16 +16,6 @@ or
 make install
 ```
 
-## Usage
-
-```
-Usage of ./simple-httpd:
-  -p int
-    	bind port (default 8000)
-  -t string
-    	enable TLS with domain name to use with TLS
-```
-
 ### Examples
 
 HTTP/1.1 on default port
@@ -43,7 +33,7 @@ simple-httpd -p 8181
 HTTP/2 on the default port
 
 ```
-simple-httpd -t -d some.valid.domain
+simple-httpd -t some.valid.domain
 ```
 
 ## Contributions 
