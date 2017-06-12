@@ -31,15 +31,21 @@ Usage of ./micro_httpd:
 
 HTTP/1.1 on default port
 
-`micro-httpd`
+```
+micro-httpd
+```
 
 HTTP/1.1 on the given port
 
-`micro-httpd -p 8181`
+```
+micro-httpd -p 8181
+```
 
 HTTP/2 on the default port
 
-`micro-httpd -t -d some.valid.domain`
+```
+micro-httpd -t -d some.valid.domain
+```
 
 ## Contributions 
 
