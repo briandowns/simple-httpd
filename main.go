@@ -29,6 +29,10 @@ const name = "micro-httpd"
 const indexHTMLFile = "index.html"
 const pathSeperator = "/"
 
+// gitSHA is populated at build time from
+// `-ldflags "-X main.gitSHA=$(shell git rev-parse HEAD)"`
+var gitSHA string
+
 // Data holds the data passed to the template engine
 type Data struct {
 	Name         string
@@ -159,7 +163,7 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 		h.template.Execute(w, map[string]interface{}{
 			"files":           files,
-			"version":         version,
+			"version":         gitSHA,
 			"port":            h.Port,
 			"relativePath":    queryStr,
 			"goVersion":       runtime.Version(),
