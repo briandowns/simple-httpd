@@ -36,3 +36,5 @@ data/*
 *.csr
 *.crt
 *.srl
+
+bin/*
