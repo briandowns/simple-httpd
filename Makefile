@@ -11,7 +11,7 @@ test:
 
 clean:
 	go clean
-	rm -f micro-httpd
+	rm -f simple-httpd
 
 install: clean
 	go install
