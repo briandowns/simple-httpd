@@ -133,7 +133,7 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		for _, entry := range contents {
 			if entry.Name() == indexHTMLFile {
 				w.Header().Set("Content-type", "text/html; charset=UTF-8")
-				w.Header().Set("Content-Length", fmt.Sprintf("%v", stat.Size()))
+				w.Header().Set("Content-Length", fmt.Sprintf("%v", entry.Size()))
 
 				hf, err := os.Open(fullpath + pathSeperator + entry.Name())
 				if err != nil {
