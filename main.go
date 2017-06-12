@@ -25,7 +25,7 @@ import (
 )
 
 const version = "0.1"
-const name = "micro-httpd"
+const name = "simple-httpd"
 const indexHTMLFile = "index.html"
 const pathSeperator = "/"
 
@@ -171,6 +171,7 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		})
 
 		fmt.Println(rd.String())
+
 		return
 	}
 
@@ -302,7 +303,7 @@ const htmlTemplate = `
 <html lang="en">
   <head>
     <meta charset="utf-8">
-    <title>micro-httpd</title>
+    <title>simple-httpd</title>
 	<style>
 		table, td {
     	border: 1px;
@@ -334,6 +335,6 @@ const htmlTemplate = `
   </body>
   <hr>
   <footer>
-    <p>micro-httpd {{.version}} / {{.goVersion}}</p>
+    <p>simple-httpd {{.version}} / {{.goVersion}}</p>
   </footer>
 </html>`

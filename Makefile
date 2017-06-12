@@ -1,7 +1,7 @@
 LDFLAGS = -ldflags "-X main.gitSHA=$(shell git rev-parse HEAD)"
 
 build: clean
-	go build $(LDFLAGS)
+	go build $(LDFLAGS) -o simple-httpd
 
 deps:
 	dep ensure
@@ -11,7 +11,7 @@ test:
 
 clean:
 	go clean
-	rm -f micro-httpd
+	rm -f simple-httpd
 
 install: clean
 	go install
