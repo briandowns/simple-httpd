@@ -70,6 +70,7 @@ func (r requestData) String() string {
 	return string(b)
 }
 
+// setHeaders sets the base headers for all requests
 func setHeaders(w http.ResponseWriter) {
 	w.Header().Set("Server", name+pathSeperator+version)
 	w.Header().Add("Date", time.Now().Format(time.RFC822))
@@ -332,6 +333,6 @@ const htmlTemplate = `
   </body>
   <hr>
   <footer>
-    <p>simple-httpd {{.version}} / {{.goVersion}}</p>
+    <p>simple-httpd - {{.version}} / {{.goVersion}}</p>
   </footer>
 </html>`
