@@ -65,13 +65,6 @@ func (r requestData) String() string {
 	return string(b)
 }
 
-// start starts the server
-func (h *httpServer) start() {
-	http.Handle("/", h)
-	fmt.Printf("Serving HTTP on 0.0.0.0 port %s ...\n", h.Port)
-	http.ListenAndServe(":"+h.Port, nil)
-}
-
 // ServeHTTP handles inbound requests
 func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	defer func() {
