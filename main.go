@@ -7,6 +7,7 @@ import (
 	"html/template"
 	"io"
 	"log"
+	"mime"
 	"net/http"
 	"net/url"
 	"os"
@@ -20,6 +21,7 @@ import (
 const version = "0.1"
 const name = "micro-httpd"
 const indexHTMLFile = "index.html"
+const pathSeperator = "/"
 
 type resourceType byte
 
@@ -45,12 +47,13 @@ type httpServer struct {
 
 // requestData
 type requestData struct {
-	Timestamp string `json:"timestamp"`
-	Method    string `json:"method"`
-	Path      string `json:"path"`
-	Status    int    `json:"status"`
-	UserAgent string `json:"user_agent"`
-	Error     string `json:"error,omitempty"`
+	Timestamp  string `json:"timestamp"`
+	Method     string `json:"method"`
+	RemoteAddr string `json:"remote_addr"`
+	Path       string `json:"path"`
+	Status     int    `json:"status"`
+	UserAgent  string `json:"user_agent"`
+	Error      string `json:"error,omitempty"`
 }
 
 // String stringifies the the requestData struct
@@ -70,30 +73,6 @@ func (h *httpServer) start() {
 	http.ListenAndServe(":"+h.Port, nil)
 }
 
-// setHeaders sets the response headers
-func setHeaders(rt resourceType, file *os.File, statInfo os.FileInfo, w http.ResponseWriter) {
-	w.Header().Set("Server", name+"/"+version)
-	w.Header().Add("Date", time.Now().Format(time.RFC822))
-
-	switch rt {
-	case directoryResource:
-		w.Header().Set("Content-type", "text/html; charset=UTF-8")
-	case fileResource:
-		if path.Ext(file.Name()) == "html" || path.Ext(file.Name()) == "htm" {
-			fmt.Println(path.Ext(file.Name()))
-			w.Header().Set("Content-type", "text/html")
-		} else {
-			w.Header().Set("Content-type", "application/octet-stream")
-		}
-		// if mimetype := mime.TypeByExtension(path.Ext(file.Name())); mimetype != "" {
-		// 	w.Header().Set("Content-type", "text/html")
-		// } else {
-		// 	w.Header().Set("Content-type", "application/octet-stream")
-		// }
-		w.Header().Set("Content-Length", fmt.Sprintf("%v", statInfo.Size()))
-	}
-}
-
 // ServeHTTP handles inbound requests
 func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	defer func() {
@@ -104,10 +83,11 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}()
 
 	rd := requestData{
-		Timestamp: time.Now().Format("2006-01-02 15:04:05"),
-		Method:    req.Method,
-		Path:      req.RequestURI,
-		UserAgent: req.UserAgent(),
+		Timestamp:  time.Now().Format("2006-01-02 15:04:05"),
+		RemoteAddr: req.RemoteAddr,
+		Method:     req.Method,
+		Path:       req.RequestURI,
+		UserAgent:  req.UserAgent(),
 	}
 
 	queryStr, err := url.QueryUnescape(req.RequestURI)
@@ -140,8 +120,6 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 
 	if stat.IsDir() {
-		setHeaders(directoryResource, nil, stat, w)
-
 		contents, err := file.Readdir(-1)
 		if err != nil {
 			rd.Status = http.StatusInternalServerError
@@ -153,19 +131,38 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 		files := make([]Data, 0, len(contents))
 		for _, entry := range contents {
+			if entry.Name() == indexHTMLFile {
+				w.Header().Set("Content-type", "text/html; charset=UTF-8")
+				w.Header().Set("Content-Length", fmt.Sprintf("%v", stat.Size()))
+
+				hf, err := os.Open(fullpath + pathSeperator + entry.Name())
+				if err != nil {
+					fmt.Println(err)
+					return
+				}
+				io.Copy(w, hf)
+
+				rd.Status = http.StatusOK
+				fmt.Println(rd.String())
+				return
+			}
 			file := Data{
 				Name:         entry.Name(),
 				LastModified: entry.ModTime().Format(time.RFC1123),
 				URI:          path.Join(queryStr, entry.Name()),
 			}
 			if entry.IsDir() {
-				file.Name = entry.Name() + "/"
+				file.Name = entry.Name() + pathSeperator
 				file.Size = entry.Size()
 			}
 			files = append(files, file)
 		}
 
 		rd.Status = http.StatusOK
+
+		w.Header().Set("Server", name+pathSeperator+version)
+		w.Header().Add("Date", time.Now().Format(time.RFC822))
+		w.Header().Set("Content-type", "text/html; charset=UTF-8")
 
 		h.template.Execute(w, map[string]interface{}{
 			"files":           files,
@@ -180,16 +177,15 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	statInfo, err := file.Stat()
-	if err != nil {
-		rd.Status = http.StatusInternalServerError
-		rd.Error = err.Error()
-		fmt.Println(rd.String())
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
+	w.Header().Set("Server", name+pathSeperator+version)
+	w.Header().Add("Date", time.Now().Format(time.RFC822))
 
-	setHeaders(fileResource, file, statInfo, w)
+	if mimetype := mime.TypeByExtension(path.Ext(file.Name())); mimetype != "" {
+		fmt.Println(mimetype)
+		w.Header().Set("Content-type", "text/html; charset=UTF-8")
+	} else {
+		w.Header().Set("Content-type", "application/octet-stream")
+	}
 
 	io.Copy(w, file)
 
@@ -229,7 +225,7 @@ const htmlTemplate = `
     <meta charset="utf-8">
     <title>micro-httpd</title>
 	<style>
-		table, th, td {
+		table, td {
     	border: 1px;
 	  }
 	</style>
