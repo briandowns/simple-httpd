@@ -19,12 +19,11 @@ make install
 ## Usage
 
 ```
-Usage of ./simple_httpd:
-  -d string
-    	domain name to use with TLS
+Usage of ./simple-httpd:
   -p int
     	bind port (default 8000)
-  -t	enable TLS (default :443)
+  -t string
+    	enable TLS with domain name to use with TLS
 ```
 
 ### Examples

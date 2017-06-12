@@ -250,29 +250,22 @@ func (k keepAliveListener) Accept() (net.Conn, error) {
 
 func main() {
 	var port int
-	var tls bool
-	var domain string
+	var tls string
 
 	flag.IntVar(&port, "p", 8000, "bind port")
-	flag.BoolVar(&tls, "t", false, "enable TLS (default :443)")
-	flag.StringVar(&domain, "d", "", "domain name to use with TLS")
+	flag.StringVar(&tls, "t", "", "enable TLS with domain name to use with TLS")
 	flag.Parse()
 
 	errChan := make(chan error, 2)
 
 	var srv http.Server
 
-	if tls {
-		if domain == "" {
-			flag.Usage()
-			os.Exit(1)
-		}
-
+	if tls != "" {
 		http2.ConfigureServer(&srv, &http2.Server{})
 
 		go func() {
 			fmt.Printf("Serving HTTPS on 0.0.0.0 port 443 ...\n")
-			errChan <- serveTLS(domain)
+			errChan <- serveTLS(tls)
 		}()
 	}
 
