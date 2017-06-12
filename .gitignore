@@ -30,3 +30,9 @@ _testmain.go
 micro_httpd
 
 data/*
+
+*.pem
+*.key
+*.csr
+*.crt
+*.srl
