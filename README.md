@@ -9,7 +9,7 @@ What makes simple-httpd different than it's Python alternative is that it suppor
 ## Installation
 
 ```
-go install github.com/briandowns/simple-httpd
+go get github.com/briandowns/simple-httpd
 ```
 or
 ```
