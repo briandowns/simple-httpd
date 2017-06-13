@@ -17,7 +17,6 @@ import (
 	"path"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"time"
 
 	"golang.org/x/crypto/acme/autocert"
@@ -44,7 +43,7 @@ type Data struct {
 // httpServer holds the relavent info/state
 type httpServer struct {
 	Directory string
-	Port      string
+	Port      int
 	template  *template.Template
 }
 
@@ -60,14 +59,12 @@ type requestData struct {
 	Error       string `json:"error,omitempty,omitempty"`
 }
 
-// String stringifies the the requestData struct
-func (r requestData) String() string {
-	b, err := json.Marshal(r)
-	if err != nil {
-		return ""
+func (r requestData) Format(f fmt.State, c rune) {
+	switch c {
+	case 'v', 's':
+		enc := json.NewEncoder(f)
+		enc.Encode(r)
 	}
-
-	return string(b)
 }
 
 // setHeaders sets the base headers for all requests
@@ -80,7 +77,7 @@ func setHeaders(w http.ResponseWriter) {
 func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	defer func() {
 		if err := recover(); err != nil {
-			http.Error(w, fmt.Sprintf("%v", err), http.StatusInternalServerError)
+			http.Error(w, fmt.Sprintln(err), http.StatusInternalServerError)
 			log.Printf("recovering from error: %s\n", err)
 		}
 	}()
@@ -97,8 +94,8 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		rd.Error = err.Error()
 		rd.Status = http.StatusInternalServerError
-		fmt.Println(rd.String())
-		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Println(rd)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -108,16 +105,17 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		rd.Error = err.Error()
 		rd.Status = http.StatusNotFound
-		fmt.Println(rd.String())
+		fmt.Println(rd)
 		http.NotFound(w, req)
 		return
 	}
+	defer file.Close()
 
 	stat, err := file.Stat()
 	if err != nil {
 		rd.Error = err.Error()
 		rd.Status = http.StatusInternalServerError
-		fmt.Println(rd.String())
+		fmt.Println(rd)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -129,7 +127,7 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		if err != nil {
 			rd.Status = http.StatusInternalServerError
 			rd.Error = err.Error()
-			fmt.Println(rd.String())
+			fmt.Println(rd)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -148,7 +146,7 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 				io.Copy(w, hf)
 
 				rd.Status = http.StatusOK
-				fmt.Println(rd.String())
+				fmt.Println(rd)
 				return
 			}
 			file := Data{
@@ -176,7 +174,7 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			"parentDirectory": path.Dir(queryStr),
 		})
 
-		fmt.Println(rd.String())
+		fmt.Println(rd)
 
 		return
 	}
@@ -191,13 +189,11 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	io.Copy(w, file)
 
 	rd.Status = http.StatusOK
-	fmt.Println(rd.String())
-
-	return
+	fmt.Println(rd)
 }
 
 // serveTLS
-func serveTLS(domain, port string) error {
+func serveTLS(domain string, port int) error {
 	u, err := user.Current()
 	if err != nil {
 		return err
@@ -225,12 +221,14 @@ func serveTLS(domain, port string) error {
 		},
 	})
 
-	ln, err := net.Listen("tcp", port)
+	ln, err := net.ListenTCP("tcp", &net.TCPAddr{
+		Port: port,
+	})
 	if err != nil {
 		return err
 	}
 
-	return srv.Serve(tls.NewListener(keepAliveListener{ln.(*net.TCPListener)}, srv.TLSConfig))
+	return srv.Serve(tls.NewListener(keepAliveListener{ln}, srv.TLSConfig))
 }
 
 // keepAliveListener
@@ -259,41 +257,35 @@ func main() {
 	flag.StringVar(&tls, "t", "", "enable TLS with the given domain name to use with TLS. Port = port + 1 ")
 	flag.Parse()
 
-	errChan := make(chan error, 2)
-
-	var srv http.Server
-
 	if tls != "" {
-		http2.ConfigureServer(&srv, &http2.Server{})
+		var srv http.Server
+		http2.ConfigureServer(&srv, new(http2.Server))
 
-		tlsPort := strconv.Itoa(port + 1)
+		tlsPort := port + 1
 
 		go func() {
-			fmt.Printf("Serving HTTPS on 0.0.0.0 port %s ...\n", tlsPort)
-			errChan <- serveTLS(tls, tlsPort)
+			fmt.Printf("Serving HTTPS on 0.0.0.0 port %v ...\n", tlsPort)
+			log.Fatal(serveTLS(tls, tlsPort))
 		}()
 	}
 
-	pwd, err := os.Getwd()
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+	h := &httpServer{
+		Port:      port,
+		Directory: getpwd(),
+		template:  template.Must(template.New("listing").Parse(htmlTemplate)),
 	}
 
-	go func() {
-		h := &httpServer{
-			Port:      strconv.Itoa(port),
-			Directory: pwd,
-			template:  template.Must(template.New("listing").Parse(htmlTemplate)),
-		}
+	fmt.Printf("Serving HTTP on 0.0.0.0 port %v ...\n", h.Port)
+	log.Fatal(http.ListenAndServe(fmt.Sprintf("0.0.0.0:%d", port), h))
 
-		http.Handle("/", h)
-		fmt.Printf("Serving HTTP on 0.0.0.0 port %s ...\n", h.Port)
-		errChan <- http.ListenAndServe(":"+h.Port, nil)
-	}()
+}
 
-	log.Fatalln(<-errChan)
-
+func getpwd() string {
+	pwd, err := os.Getwd()
+	if err != nil {
+		log.Fatal(err)
+	}
+	return pwd
 }
 
 const htmlTemplate = `
