@@ -27,4 +27,4 @@ uninstall: clean
 	rm -f /usr/local/bin/simple-httpd*
 
 release:
-	@./build.sh
+	@./build.sh release

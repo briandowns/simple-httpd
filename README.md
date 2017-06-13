@@ -4,7 +4,7 @@ simple-httpd is aimed to be a simple replacement for using `python -m SimpleHTTP
 
 The HTML output is a mix of the Python module layout and of an Apache directory listing layout. 
 
-What makes simple-httpd different than it's Python alternative is that it supports HTTP2 with Let's Encrypt integration for automatic TLS.  A valid domain name is needed for the certificate to be generated and used.
+What makes simple-httpd different than it's Python alternative is that it supports HTTP2 with Let's Encrypt integration for automatic TLS if enabled.
 
 ## Installation
 
@@ -15,6 +15,8 @@ or
 ```
 make install
 ```
+or
+
 
 ### Examples
 
@@ -34,6 +36,12 @@ HTTP/2 on the default port
 
 ```
 simple-httpd -t some.valid.domain
+```
+
+The port assignment is for the HTTP server.  The TLS port will be 8081 and both will responde to requests.
+
+```
+simple-httpd -p 8080 -t some.valid.domain
 ```
 
 ## Contributions 

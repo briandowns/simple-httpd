@@ -19,7 +19,8 @@ case "$1" in
     "release") 
         echo "Building release..."
         for arch in ${ARCHS}; do
-           GOOS=${arch} GOARCH=amd64 go build -v -ldflags "-X main.gitSHA=$(git rev-parse HEAD)" -o bin/simple-httpd-${arch}
+            GOOS=${arch} GOARCH=amd64 go build -v -ldflags "-X main.gitSHA=$(git rev-parse HEAD)" -o bin/simple-httpd-${arch}
+            tar -czvf bin/simple-httpd-${arch}.tar.gz bin/simple-httpd-${arch}
         done
         ;;
     "freebsd") 
@@ -36,7 +37,7 @@ case "$1" in
         ;;
     "windows") 
         echo "Building binary for Windows"
-        GOOS=${WINDOWS} GOARCH=amd64 go build -v -ldflags "-X main.gitSHA=$(git rev-parse HEAD)" -o bin/simple-httpd-${WINDOWS}
+        GOOS=${WINDOWS} GOARCH=amd64 go build -v -ldflags "-X main.gitSHA=$(git rev-parse HEAD)" -o bin/simple-httpd-${WINDOWS}.exe
         ;;
 esac
 
