@@ -28,6 +28,7 @@ _testmain.go
 *.iml
 
 simple_httpd
+simple-httpd
 
 data/*
 

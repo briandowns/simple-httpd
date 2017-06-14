@@ -4,7 +4,9 @@ simple-httpd is aimed to be a simple replacement for using `python -m SimpleHTTP
 
 The HTML output is a mix of the Python module layout and of an Apache directory listing layout. 
 
-What makes simple-httpd different than it's Python alternative is that it supports HTTP2 with Let's Encrypt integration for automatic TLS if enabled.
+What makes simple-httpd different than it's Python alternative is that it supports HTTP2 with Let's Encrypt integration for automatic TLS if enabled.  Certificates are cached in `${HOME}/.autocert` for reuse.
+
+If you're looking for a full featured or even just more capable web server, take a look at [Caddy](https://caddyserver.com/).
 
 ## Installation
 
