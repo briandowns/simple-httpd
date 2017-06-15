@@ -14,17 +14,23 @@ test:
 clean:
 	go clean
 	rm -f simple-httpd
+	rm -f bin/*
 
-install: clean release
+install: clean
 ifeq ($(OS),Darwin)
+	./build.sh darwin
 	cp -f bin/simple-httpd-darwin /usr/local/bin/simple-httpd
 endif 
 ifeq ($(OS),Linux)
+	./build.sh linux
 	cp -f bin/simple-httpd-linux /usr/local/bin/simple-httpd
 endif
-
-uninstall: clean
+ifeq ($(OS),FreeBSD)
+	./build.sh linux
+	cp -f bin/simple-httpd-freebsd/usr/local/bin/simple-httpd
+endif
+uninstall: 
 	rm -f /usr/local/bin/simple-httpd*
 
 release:
-	@./build.sh release
+	./build.sh release
