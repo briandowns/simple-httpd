@@ -28,6 +28,12 @@ const name = "simple-httpd"
 const indexHTMLFile = "index.html"
 const pathSeperator = "/"
 
+const (
+	cert    = "cert.pem"
+	key     = "key.pem"
+	certDir = "/.autocert"
+)
+
 // gitSHA is populated at build time from
 // `-ldflags "-X main.gitSHA=$(shell git rev-parse HEAD)"`
 var gitSHA string
@@ -198,7 +204,7 @@ func serveTLS(domain string, port int) error {
 	if err != nil {
 		return err
 	}
-	cacheDir := u.HomeDir + "/.autocert"
+	cacheDir := u.HomeDir + certDir
 	if err := os.MkdirAll(cacheDir, 0700); err != nil {
 		return err
 	}
@@ -249,15 +255,37 @@ func (k keepAliveListener) Accept() (net.Conn, error) {
 	return tc, nil
 }
 
+func getpwd() string {
+	pwd, err := os.Getwd()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return pwd
+}
+
+func homeDir() string {
+	u, err := user.Current()
+	if err != nil {
+		return ""
+	}
+
+	return u.HomeDir
+}
+
 func main() {
 	var port int
-	var tls string
+	var le string
+	var gs bool
+
+	pwd := getpwd()
 
 	flag.IntVar(&port, "p", 8000, "bind port")
-	flag.StringVar(&tls, "t", "", "enable TLS with the given domain name to use with TLS. Port = port + 1 ")
+	flag.StringVar(&le, "l", "", "enable TLS with Let's Encrypt for the given domain name. Port = port + 1 ")
+	flag.BoolVar(&gs, "g", false, "generate and use a self signed certificate")
 	flag.Parse()
 
-	if tls != "" {
+	if le != "" {
 		var srv http.Server
 		http2.ConfigureServer(&srv, new(http2.Server))
 
@@ -265,27 +293,33 @@ func main() {
 
 		go func() {
 			fmt.Printf("Serving HTTPS on 0.0.0.0 port %v ...\n", tlsPort)
-			log.Fatal(serveTLS(tls, tlsPort))
+			log.Fatal(serveTLS(le, tlsPort))
 		}()
 	}
 
 	h := &httpServer{
 		Port:      port,
-		Directory: getpwd(),
+		Directory: pwd,
 		template:  template.Must(template.New("listing").Parse(htmlTemplate)),
+	}
+
+	if gs {
+		hd := homeDir()
+
+		certPath := hd + certDir + pathSeperator + cert
+		keyPath := hd + certDir + pathSeperator + key
+
+		if err := generateCertificates(certPath, keyPath); err != nil {
+			log.Fatalln(err)
+		}
+
+		fmt.Printf("Serving HTTPS on 0.0.0.0 port %v ...\n", h.Port+1)
+		log.Fatal(http.ListenAndServeTLS(fmt.Sprintf("0.0.0.0:%d", port+1), certPath, keyPath, h))
 	}
 
 	fmt.Printf("Serving HTTP on 0.0.0.0 port %v ...\n", h.Port)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf("0.0.0.0:%d", port), h))
 
-}
-
-func getpwd() string {
-	pwd, err := os.Getwd()
-	if err != nil {
-		log.Fatal(err)
-	}
-	return pwd
 }
 
 const htmlTemplate = `

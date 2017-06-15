@@ -4,9 +4,14 @@ simple-httpd is aimed to be a simple replacement for using `python -m SimpleHTTP
 
 The HTML output is a mix of the Python module layout and of an Apache directory listing layout. 
 
-What makes simple-httpd different than it's Python alternative is that it supports HTTP2 with Let's Encrypt integration for automatic TLS if enabled.  Certificates are cached in `${HOME}/.autocert` for reuse.
-
 If you're looking for a full featured or even just more capable web server, take a look at [Caddy](https://caddyserver.com/).
+
+## Features
+
+* HTTP2 with Let's Encrypt integration for automatic TLS if enabled
+* Automatic self signed certificate generation and use if enabled
+
+Certificates are cached in `${HOME}/.autocert` for reuse.
 
 ## Installation
 
@@ -19,10 +24,9 @@ make install
 ```
 or
 
-
 ### Examples
 
-HTTP/1.1 on default port
+HTTP/1.1 on default port (8000)
 
 ```
 simple-httpd
@@ -34,16 +38,22 @@ HTTP/1.1 on the given port
 simple-httpd -p 8181
 ```
 
-HTTP/2 on the default port
+HTTP/2 with Let's Encrypt on the default port
 
 ```
-simple-httpd -t some.valid.domain
+simple-httpd -l some.valid.domain
 ```
 
 The port assignment is for the HTTP server.  The TLS port will be 8081 and both will responde to requests.
 
 ```
 simple-httpd -p 8080 -t some.valid.domain
+```
+
+Generate a self signed certificate and run the server
+
+```
+simple-httpd -g
 ```
 
 ## Contributions 
