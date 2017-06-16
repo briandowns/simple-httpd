@@ -96,7 +96,7 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		UserAgent:  req.UserAgent(),
 	}
 
-	queryStr, err := url.QueryUnescape(req.RequestURI)
+	parsedURL, err := url.Parse(req.RequestURI)
 	if err != nil {
 		rd.Error = err.Error()
 		rd.Status = http.StatusInternalServerError
@@ -105,7 +105,8 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	fullpath := filepath.Join(h.Directory, queryStr[1:])
+	escapedPath := parsedURL.EscapedPath()
+	fullpath := filepath.Join(h.Directory, escapedPath[1:])
 
 	file, err := os.Open(fullpath)
 	if err != nil {
@@ -158,7 +159,7 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			file := Data{
 				Name:         entry.Name(),
 				LastModified: entry.ModTime().Format(time.RFC1123),
-				URI:          path.Join(queryStr, entry.Name()),
+				URI:          path.Join(escapedPath, entry.Name()),
 			}
 			if entry.IsDir() {
 				file.Name = entry.Name() + pathSeperator
@@ -175,9 +176,9 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			"files":           files,
 			"version":         gitSHA,
 			"port":            h.Port,
-			"relativePath":    queryStr,
+			"relativePath":    escapedPath,
 			"goVersion":       runtime.Version(),
-			"parentDirectory": path.Dir(queryStr),
+			"parentDirectory": path.Dir(escapedPath),
 		})
 
 		fmt.Println(rd)
