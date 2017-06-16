@@ -25,8 +25,11 @@ import (
 
 const version = "0.1"
 const name = "simple-httpd"
-const indexHTMLFile = "index.html"
 const pathSeperator = "/"
+var indexHTMLFiles = []string{
+	"index.html",
+	"index.htm",
+}
 
 const (
 	cert    = "cert.pem"
@@ -77,6 +80,15 @@ func (r requestData) Format(f fmt.State, c rune) {
 func setHeaders(w http.ResponseWriter) {
 	w.Header().Set("Server", name+pathSeperator+version)
 	w.Header().Add("Date", time.Now().Format(time.RFC822))
+}
+
+func isIndexFile(file string) bool {
+	for _, s := range indexHTMLFiles {
+		if s == file {
+			return true
+		}
+	}
+	return false
 }
 
 // ServeHTTP handles inbound requests
@@ -141,7 +153,7 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 		files := make([]Data, 0, len(contents))
 		for _, entry := range contents {
-			if entry.Name() == indexHTMLFile {
+			if isIndexFile(entry.Name()) {
 				w.Header().Set("Content-type", "text/html; charset=UTF-8")
 				w.Header().Set("Content-Length", fmt.Sprintf("%v", entry.Size()))
 
