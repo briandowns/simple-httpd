@@ -17,15 +17,17 @@ import (
 	"path"
 	"path/filepath"
 	"runtime"
+	"strconv"
+	"strings"
 	"time"
 
 	"golang.org/x/crypto/acme/autocert"
-	"golang.org/x/net/http2"
 )
 
 const version = "0.1"
 const name = "simple-httpd"
 const pathSeperator = "/"
+
 var indexHTMLFiles = []string{
 	"index.html",
 	"index.htm",
@@ -34,7 +36,7 @@ var indexHTMLFiles = []string{
 const (
 	cert    = "cert.pem"
 	key     = "key.pem"
-	certDir = "/.autocert"
+	certDir = ".autocert"
 )
 
 // gitSHA is populated at build time from
@@ -53,6 +55,8 @@ type Data struct {
 type httpServer struct {
 	Directory string
 	Port      int
+	TLSPort   int
+	HTTPS     bool
 	template  *template.Template
 }
 
@@ -93,6 +97,15 @@ func isIndexFile(file string) bool {
 
 // ServeHTTP handles inbound requests
 func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	if h.HTTPS && req.TLS == nil {
+		url := "https://" + strings.Split(req.Host, ":")[0]
+		if h.TLSPort != 443 {
+			url = url + ":" + strconv.FormatInt(int64(h.TLSPort), 10)
+		}
+		url += req.URL.String()
+		http.Redirect(w, req, url, 302)
+		return
+	}
 	defer func() {
 		if err := recover(); err != nil {
 			http.Error(w, fmt.Sprintln(err), http.StatusInternalServerError)
@@ -157,7 +170,7 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 				w.Header().Set("Content-type", "text/html; charset=UTF-8")
 				w.Header().Set("Content-Length", fmt.Sprintf("%v", entry.Size()))
 
-				hf, err := os.Open(fullpath + pathSeperator + entry.Name())
+				hf, err := os.Open(filepath.Join(fullpath, entry.Name()))
 				if err != nil {
 					fmt.Println(err)
 					return
@@ -211,45 +224,6 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	fmt.Println(rd)
 }
 
-// serveTLS
-func serveTLS(domain string, port int) error {
-	u, err := user.Current()
-	if err != nil {
-		return err
-	}
-	cacheDir := u.HomeDir + certDir
-	if err := os.MkdirAll(cacheDir, 0700); err != nil {
-		return err
-	}
-
-	m := autocert.Manager{
-		Cache:      autocert.DirCache(cacheDir),
-		Prompt:     autocert.AcceptTOS,
-		HostPolicy: autocert.HostWhitelist(domain),
-	}
-
-	srv := &http.Server{
-		TLSConfig: &tls.Config{
-			GetCertificate: m.GetCertificate,
-		},
-	}
-
-	http2.ConfigureServer(srv, &http2.Server{
-		NewWriteScheduler: func() http2.WriteScheduler {
-			return http2.NewPriorityWriteScheduler(nil)
-		},
-	})
-
-	ln, err := net.ListenTCP("tcp", &net.TCPAddr{
-		Port: port,
-	})
-	if err != nil {
-		return err
-	}
-
-	return srv.Serve(tls.NewListener(keepAliveListener{ln}, srv.TLSConfig))
-}
-
 // keepAliveListener
 type keepAliveListener struct {
 	*net.TCPListener
@@ -290,49 +264,122 @@ func main() {
 	var port int
 	var le string
 	var gs bool
-
+	var tlsPort int
+	var tlsCert string
+	var vers bool
 	pwd := getpwd()
 
-	flag.IntVar(&port, "p", 8000, "bind port")
-	flag.StringVar(&le, "l", "", "enable TLS with Let's Encrypt for the given domain name. Port = port + 1 ")
-	flag.BoolVar(&gs, "g", false, "generate and use a self signed certificate")
-	flag.Parse()
-
-	if le != "" {
-		var srv http.Server
-		http2.ConfigureServer(&srv, new(http2.Server))
-
-		tlsPort := port + 1
-
-		go func() {
-			fmt.Printf("Serving HTTPS on 0.0.0.0 port %v ...\n", tlsPort)
-			log.Fatal(serveTLS(le, tlsPort))
-		}()
+	flag.Usage = func() {
+		w := os.Stderr
+		for _, arg := range os.Args {
+			if arg == "-?" || arg == "-h" {
+				w = os.Stdout
+				break
+			}
+		}
+		fmt.Fprintf(w, "simple-httpd version: %s\n", name+pathSeperator+version)
+		fmt.Fprintf(w, "Usage: simple-httpd [-p port] [-l domain]\n")
+		fmt.Fprintf(w, "\n")
+		fmt.Fprintf(w, "Examples: simple-httpd                        start server. http://localhost:8000\n")
+		fmt.Fprintf(w, "      or: simple-httpd -p 80                  use HTTP port 80. http://localhost\n")
+		fmt.Fprintf(w, "      or: simple-httpd -g                     enable HTTPS generated certificate. https://localhost:4433\n")
+		fmt.Fprintf(w, "      or: simple-httpd -p 80 -l example.com   enable HTTPS with Let's Encrypt. https://example.com\n")
+		fmt.Fprintf(w, "\n")
+		fmt.Fprintf(w, "Options:\n")
+		fmt.Fprintf(w, "  -?,-h        : this help\n")
+		fmt.Fprintf(w, "  -v           : show version and exit\n")
+		fmt.Fprintf(w, "  -g           : enable TLS/HTTPS generate and use a self signed certificate\n")
+		fmt.Fprintf(w, "  -p port      : bind HTTP port (default: 8000)\n")
+		fmt.Fprintf(w, "  -l domain    : enable TLS/HTTPS with Let's Encrypt for the given domain name.\n")
+		fmt.Fprintf(w, "  -c path      : enable TLS/HTTPS use a predefined HTTPS certificate\n")
+		fmt.Fprintf(w, "  -t port      : bind HTTPS port (default: 443, 4433 for -g)\n")
+		fmt.Fprintf(w, "\n")
 	}
 
+	flag.BoolVar(&vers, "v", false, "")
+	flag.IntVar(&port, "p", 8000, "")
+	flag.StringVar(&le, "l", "", "")
+	flag.StringVar(&tlsCert, "c", "", "")
+	flag.BoolVar(&gs, "g", false, "")
+	flag.IntVar(&tlsPort, "t", -1, "")
+	flag.Parse()
+
+	if vers {
+		fmt.Fprintf(os.Stdout, "simple-httpd version: %s\n", name+pathSeperator+version)
+		return
+	}
+	if tlsPort == -1 {
+		if gs {
+			tlsPort = 4433
+		} else {
+			tlsPort = 443
+		}
+	}
 	h := &httpServer{
 		Port:      port,
+		TLSPort:   tlsPort,
 		Directory: pwd,
 		template:  template.Must(template.New("listing").Parse(htmlTemplate)),
 	}
 
-	if gs {
-		hd := homeDir()
-
-		certPath := hd + certDir + pathSeperator + cert
-		keyPath := hd + certDir + pathSeperator + key
-
-		if err := generateCertificates(certPath, keyPath); err != nil {
-			log.Fatalln(err)
+	if le != "" || tlsCert != "" || gs {
+		h.HTTPS = true
+		var tlsServer *http.Server
+		var certPath, keyPath string
+		switch {
+		case tlsCert != "":
+			if gs {
+				log.Fatal("cannot specify both -tls-cert and -g")
+			}
+			certPath, keyPath = tlsCert, tlsCert // assume a single PEM format
+		case gs:
+			hd := homeDir()
+			certPath = filepath.Join(hd, certDir, cert)
+			keyPath = filepath.Join(hd, certDir, key)
+			if err := generateCertificates(certPath, keyPath); err != nil {
+				log.Fatalln(err)
+			}
+		default:
+			if tlsPort != 443 {
+				log.Fatal("invalid -tls-port. It must be 443 when LetsEncrypt is specified.")
+			}
+			cacheDir := filepath.Join(homeDir(), certDir)
+			if err := os.MkdirAll(cacheDir, 0700); err != nil {
+				log.Fatalf("could not create cache directory: %s" + err.Error())
+			}
+			certManager := autocert.Manager{
+				Cache:      autocert.DirCache(cacheDir),
+				Prompt:     autocert.AcceptTOS,
+				HostPolicy: autocert.HostWhitelist(le),
+			}
+			tlsServer = &http.Server{
+				Addr: fmt.Sprintf(":%d", tlsPort),
+				TLSConfig: &tls.Config{
+					GetCertificate: certManager.GetCertificate,
+				},
+				Handler: h,
+			}
 		}
-
-		fmt.Printf("Serving HTTPS on 0.0.0.0 port %v ...\n", h.Port+1)
-		log.Fatal(http.ListenAndServeTLS(fmt.Sprintf("0.0.0.0:%d", port+1), certPath, keyPath, h))
+		go func() {
+			var err error
+			if tlsServer == nil {
+				err = http.ListenAndServeTLS(fmt.Sprintf("0.0.0.0:%d", tlsPort), certPath, keyPath, h)
+			} else {
+				err = tlsServer.ListenAndServeTLS("", "")
+			}
+			if err != nil {
+				log.Fatal(err)
+			}
+		}()
+		time.Sleep(time.Millisecond * 10) // give a little warmup time to the TLS
+		fmt.Printf("Serving HTTP on 0.0.0.0 port %v, HTTPS on port %v...\n", h.Port, tlsPort)
+	} else {
+		go func() {
+			time.Sleep(time.Millisecond * 10) // give a little warmup time to the HTTP
+			fmt.Printf("Serving HTTP on 0.0.0.0 port %v ...\n", h.Port)
+		}()
 	}
-
-	fmt.Printf("Serving HTTP on 0.0.0.0 port %v ...\n", h.Port)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf("0.0.0.0:%d", port), h))
-
 }
 
 const htmlTemplate = `
