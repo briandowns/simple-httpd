@@ -212,7 +212,6 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 
 	if mimetype := mime.TypeByExtension(path.Ext(file.Name())); mimetype != "" {
-		fmt.Println(mimetype)
 		w.Header().Set("Content-type", mimetype)
 	} else {
 		w.Header().Set("Content-type", "application/octet-stream")
