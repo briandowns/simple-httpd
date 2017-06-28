@@ -155,6 +155,14 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	setHeaders(w)
 
 	if stat.IsDir() {
+		if escapedPath[len(escapedPath) - 1] != '/' {
+			// Redirect all directory requests to ensure they end with a slash
+			http.Redirect(w, req, escapedPath + "/", http.StatusFound)
+			rd.Status = http.StatusFound;
+			fmt.Println(rd)
+			return
+		}
+
 		contents, err := file.Readdir(-1)
 		if err != nil {
 			rd.Status = http.StatusInternalServerError
@@ -203,7 +211,7 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			"port":            h.Port,
 			"relativePath":    escapedPath,
 			"goVersion":       runtime.Version(),
-			"parentDirectory": path.Dir(escapedPath),
+			"parentDirectory": path.Clean(escapedPath + "/.."),
 		})
 
 		fmt.Println(rd)
