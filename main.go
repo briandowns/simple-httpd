@@ -24,7 +24,7 @@ import (
 	"golang.org/x/crypto/acme/autocert"
 )
 
-const version = "0.1"
+const version = "0.2"
 const name = "simple-httpd"
 const pathSeperator = "/"
 
@@ -254,8 +254,12 @@ func (k keepAliveListener) Accept() (net.Conn, error) {
 		return nil, err
 	}
 
-	tc.SetKeepAlive(true)
-	tc.SetKeepAlivePeriod(time.Minute * 3)
+	if err := tc.SetKeepAlive(true); err != nil {
+		return nil, err
+	}
+	if err := tc.SetKeepAlivePeriod(time.Minute * 3); err != nil {
+		return nil, err
+	}
 
 	return tc, nil
 }
@@ -283,7 +287,7 @@ const usage = `simple-httpd version: %s
 Usage: simple-httpd [-p port] [-l domain]
 
 Options:
-  -?, -h       : this help
+  -h           : this help
   -v           : show version and exit
   -g           : enable TLS/HTTPS generate and use a self signed certificate
   -p port      : bind HTTP port (default: 8000)
@@ -309,7 +313,7 @@ func main() {
 	flag.Usage = func() {
 		w := os.Stderr
 		for _, arg := range os.Args {
-			if arg == "-?" || arg == "-h" {
+			if arg == "-h" {
 				w = os.Stdout
 				break
 			}
