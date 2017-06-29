@@ -24,7 +24,7 @@ import (
 	"golang.org/x/crypto/acme/autocert"
 )
 
-const version = "0.1"
+const version = "0.2"
 const name = "simple-httpd"
 const pathSeperator = "/"
 
@@ -76,7 +76,9 @@ func (r requestData) Format(f fmt.State, c rune) {
 	switch c {
 	case 'v', 's':
 		enc := json.NewEncoder(f)
-		enc.Encode(r)
+		if err := enc.Encode(r); err != nil {
+			log.Println(err)
+		}
 	}
 }
 
@@ -155,10 +157,10 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	setHeaders(w)
 
 	if stat.IsDir() {
-		if escapedPath[len(escapedPath) - 1] != '/' {
+		if escapedPath[len(escapedPath)-1] != '/' {
 			// Redirect all directory requests to ensure they end with a slash
-			http.Redirect(w, req, escapedPath + "/", http.StatusFound)
-			rd.Status = http.StatusFound;
+			http.Redirect(w, req, escapedPath+"/", http.StatusFound)
+			rd.Status = http.StatusFound
 			fmt.Println(rd)
 			return
 		}
@@ -183,7 +185,10 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 					fmt.Println(err)
 					return
 				}
-				io.Copy(w, hf)
+				if _, err := io.Copy(w, hf); err != nil {
+					fmt.Println(err)
+					return
+				}
 
 				rd.Status = http.StatusOK
 				fmt.Println(rd)
@@ -205,14 +210,17 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 		w.Header().Set("Content-type", "text/html; charset=UTF-8")
 
-		h.template.Execute(w, map[string]interface{}{
+		if err := h.template.Execute(w, map[string]interface{}{
 			"files":           files,
 			"version":         gitSHA,
 			"port":            h.Port,
 			"relativePath":    escapedPath,
 			"goVersion":       runtime.Version(),
 			"parentDirectory": path.Clean(escapedPath + "/.."),
-		})
+		}); err != nil {
+			fmt.Println(err)
+			return
+		}
 
 		fmt.Println(rd)
 
@@ -225,7 +233,10 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		w.Header().Set("Content-type", "application/octet-stream")
 	}
 
-	io.Copy(w, file)
+	if _, err := io.Copy(w, file); err != nil {
+		fmt.Println(err)
+		return
+	}
 
 	rd.Status = http.StatusOK
 	fmt.Println(rd)
@@ -243,8 +254,12 @@ func (k keepAliveListener) Accept() (net.Conn, error) {
 		return nil, err
 	}
 
-	tc.SetKeepAlive(true)
-	tc.SetKeepAlivePeriod(time.Minute * 3)
+	if err := tc.SetKeepAlive(true); err != nil {
+		return nil, err
+	}
+	if err := tc.SetKeepAlivePeriod(time.Minute * 3); err != nil {
+		return nil, err
+	}
 
 	return tc, nil
 }
@@ -267,6 +282,25 @@ func homeDir() string {
 	return u.HomeDir
 }
 
+const usage = `simple-httpd version: %s
+
+Usage: simple-httpd [-p port] [-l domain]
+
+Options:
+  -h           : this help
+  -v           : show version and exit
+  -g           : enable TLS/HTTPS generate and use a self signed certificate
+  -p port      : bind HTTP port (default: 8000)
+  -l domain    : enable TLS/HTTPS with Let's Encrypt for the given domain name.
+  -c path      : enable TLS/HTTPS use a predefined HTTPS certificate
+  -t port      : bind HTTPS port (default: 443, 4433 for -g)
+
+Examples: simple-httpd                    start server. http://localhost:8000
+  or: simple-httpd -p 80                  use HTTP port 80. http://localhost
+  or: simple-httpd -g                     enable HTTPS generated certificate. https://localhost:4433
+  or: simple-httpd -p 80 -l example.com   enable HTTPS with Let's Encrypt. https://example.com
+`
+
 func main() {
 	var port int
 	var le string
@@ -279,28 +313,12 @@ func main() {
 	flag.Usage = func() {
 		w := os.Stderr
 		for _, arg := range os.Args {
-			if arg == "-?" || arg == "-h" {
+			if arg == "-h" {
 				w = os.Stdout
 				break
 			}
 		}
-		fmt.Fprintf(w, "simple-httpd version: %s\n", name+pathSeperator+version)
-		fmt.Fprintf(w, "Usage: simple-httpd [-p port] [-l domain]\n")
-		fmt.Fprintf(w, "\n")
-		fmt.Fprintf(w, "Examples: simple-httpd                        start server. http://localhost:8000\n")
-		fmt.Fprintf(w, "      or: simple-httpd -p 80                  use HTTP port 80. http://localhost\n")
-		fmt.Fprintf(w, "      or: simple-httpd -g                     enable HTTPS generated certificate. https://localhost:4433\n")
-		fmt.Fprintf(w, "      or: simple-httpd -p 80 -l example.com   enable HTTPS with Let's Encrypt. https://example.com\n")
-		fmt.Fprintf(w, "\n")
-		fmt.Fprintf(w, "Options:\n")
-		fmt.Fprintf(w, "  -?,-h        : this help\n")
-		fmt.Fprintf(w, "  -v           : show version and exit\n")
-		fmt.Fprintf(w, "  -g           : enable TLS/HTTPS generate and use a self signed certificate\n")
-		fmt.Fprintf(w, "  -p port      : bind HTTP port (default: 8000)\n")
-		fmt.Fprintf(w, "  -l domain    : enable TLS/HTTPS with Let's Encrypt for the given domain name.\n")
-		fmt.Fprintf(w, "  -c path      : enable TLS/HTTPS use a predefined HTTPS certificate\n")
-		fmt.Fprintf(w, "  -t port      : bind HTTPS port (default: 443, 4433 for -g)\n")
-		fmt.Fprintf(w, "\n")
+		fmt.Fprintf(w, usage, name+pathSeperator+version)
 	}
 
 	flag.BoolVar(&vers, "v", false, "")

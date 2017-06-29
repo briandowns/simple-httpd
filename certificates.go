@@ -153,15 +153,23 @@ func generateCertificates(certPath, keyPath string) error {
 	if err != nil {
 		return err
 	}
-	pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: derBytes})
-	certOut.Close()
+	if err := pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: derBytes}); err != nil {
+		return err
+	}
+	if err := certOut.Close(); err != nil {
+		return err
+	}
 
 	keyOut, err := os.OpenFile(keyPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
 		return err
 	}
-	pem.Encode(keyOut, pemBlockForKey(priv))
-	keyOut.Close()
+	if err := pem.Encode(keyOut, pemBlockForKey(priv)); err != nil {
+		return err
+	}
+	if err := keyOut.Close(); err != nil {
+		return err
+	}
 
 	return nil
 }
