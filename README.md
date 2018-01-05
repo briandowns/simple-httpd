@@ -44,7 +44,7 @@ HTTP/2 with Let's Encrypt on the default port
 simple-httpd -l some.valid.domain
 ```
 
-The port assignment is for the HTTP server.  The TLS port will be 8081 and both will responde to requests.
+The port assignment is for the HTTP server.  The TLS port will be 8081 and both will respond to requests.
 
 ```
 simple-httpd -p 8080 -t some.valid.domain
