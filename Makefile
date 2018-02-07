@@ -27,7 +27,7 @@ ifeq ($(OS),Linux)
 endif
 ifeq ($(OS),FreeBSD)
 	./build.sh freebsd
-	cp -f bin/simple-httpd-freebsd/usr/local/bin/simple-httpd
+	cp -f bin/simple-httpd-freebsd /usr/local/bin/simple-httpd
 endif
 uninstall: 
 	rm -f /usr/local/bin/simple-httpd*

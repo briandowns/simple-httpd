@@ -22,7 +22,10 @@ or
 ```
 make install
 ```
-or
+or, on BSD
+```
+gmake install
+```
 
 ### Examples
 
