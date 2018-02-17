@@ -1,8 +1,10 @@
 # simple-httpd
 
-simple-httpd is aimed to be a simple replacement for using `python -m SimpleHTTPServer` to serve local files.  Like [SimpleHTTPServer](https://docs.python.org/2/library/simplehttpserver.html), simple-httpd supports HTTP GET and HEAD requests and adheres to the [HTTP/1.1 RFC 2616](https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html) guidelines.  
+https://travis-ci.org/aleccunningham/simple-httpd.svg?branch=master
 
-The HTML output is a mix of the Python module layout and of an Apache directory listing layout. 
+simple-httpd is aimed to be a simple replacement for using `python -m SimpleHTTPServer` to serve local files.  Like [SimpleHTTPServer](https://docs.python.org/2/library/simplehttpserver.html), simple-httpd supports HTTP GET and HEAD requests and adheres to the [HTTP/1.1 RFC 2616](https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html) guidelines.
+
+The HTML output is a mix of the Python module layout and of an Apache directory listing layout.
 
 If you're looking for a full featured or even just more capable web server, take a look at [Caddy](https://caddyserver.com/).
 
@@ -59,7 +61,7 @@ Generate a self signed certificate and run the server
 simple-httpd -g
 ```
 
-## Contributions 
+## Contributions
 
 * File Issue with details of the problem, feature request, etc.
 * Submit a pull request and include details of what problem or feature the code is solving or implementing.
