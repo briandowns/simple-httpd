@@ -1,7 +1,9 @@
 pipeline:
-  backend:
+  build:
     image: golang
+    environment: 
+      - SHA="${DRONE_COMMIT_SHA}"
     commands:
-      - go get
-      - go build -o simple-httpd
+      - go get -d ./...
       - go test -v .
+      - go build -v -ldflags "-X main.gitSHA=$SHA" -o simple-httpd
