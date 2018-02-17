@@ -1,0 +1,7 @@
+pipeline:
+  backend:
+    image: golang
+    commands:
+      - go get
+      - go build -o simple-httpd
+      - go test -v .
