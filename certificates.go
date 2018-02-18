@@ -51,9 +51,7 @@ func namesAndAddresses() ([]string, error) {
 	return r, nil
 }
 
-var (
-	ecdsaCurve = ""
-)
+var ecdsaCurve = ""
 
 // publicKey
 func publicKey(priv interface{}) interface{} {
@@ -167,9 +165,5 @@ func generateCertificates(certPath, keyPath string) error {
 	if err := pem.Encode(keyOut, pemBlockForKey(priv)); err != nil {
 		return err
 	}
-	if err := keyOut.Close(); err != nil {
-		return err
-	}
-
-	return nil
+	return keyOut.Close()
 }

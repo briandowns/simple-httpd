@@ -1,6 +1,6 @@
 # simple-httpd
 
-[![Build Status](https://travis-ci.org/aleccunningham/simple-httpd.svg?branch=master)](https://travis-ci.org/aleccunningham/simple-httpd)
+[![Build Status](https://travis-ci.org/briandowns/simple-httpd.svg?branch=master)](https://travis-ci.org/briandowns/simple-httpd)
 
 simple-httpd is aimed to be a simple replacement for using `python -m SimpleHTTPServer` to serve local files.  Like [SimpleHTTPServer](https://docs.python.org/2/library/simplehttpserver.html), simple-httpd supports HTTP GET and HEAD requests and adheres to the [HTTP/1.1 RFC 2616](https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html) guidelines.
 

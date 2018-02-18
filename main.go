@@ -9,7 +9,6 @@ import (
 	"io"
 	"log"
 	"mime"
-	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -88,6 +87,8 @@ func setHeaders(w http.ResponseWriter) {
 	w.Header().Add("Date", time.Now().Format(time.RFC822))
 }
 
+// isIndexFile determines if the given file is one
+// of the accepted index files
 func isIndexFile(file string) bool {
 	for _, s := range indexHTMLFiles {
 		if s == file {
@@ -242,28 +243,7 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	fmt.Println(rd)
 }
 
-// keepAliveListener
-type keepAliveListener struct {
-	*net.TCPListener
-}
-
-// Accept
-func (k keepAliveListener) Accept() (net.Conn, error) {
-	tc, err := k.AcceptTCP()
-	if err != nil {
-		return nil, err
-	}
-
-	if err := tc.SetKeepAlive(true); err != nil {
-		return nil, err
-	}
-	if err := tc.SetKeepAlivePeriod(time.Minute * 3); err != nil {
-		return nil, err
-	}
-
-	return tc, nil
-}
-
+// getpwd returns the present working directory
 func getpwd() string {
 	pwd, err := os.Getwd()
 	if err != nil {
@@ -273,6 +253,8 @@ func getpwd() string {
 	return pwd
 }
 
+// homeDir returns the home directory of the user
+// who executed simle-httpd
 func homeDir() string {
 	u, err := user.Current()
 	if err != nil {
