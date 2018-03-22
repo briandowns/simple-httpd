@@ -1,7 +1,7 @@
 language: go
 
 go:
-  - 1.9
+  - 1.10
   - master
 
 # Skip the install step. Don't `go get` dependencies. Only build with the
