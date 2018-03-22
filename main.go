@@ -224,7 +224,6 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		}
 
 		fmt.Println(rd)
-
 		return
 	}
 
@@ -249,7 +248,6 @@ func getpwd() string {
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	return pwd
 }
 
@@ -260,7 +258,6 @@ func homeDir() string {
 	if err != nil {
 		return ""
 	}
-
 	return u.HomeDir
 }
 
@@ -269,18 +266,19 @@ const usage = `simple-httpd version: %s
 Usage: simple-httpd [-p port] [-l domain]
 
 Options:
-  -h           : this help
-  -v           : show version and exit
-  -g           : enable TLS/HTTPS generate and use a self signed certificate
-  -p port      : bind HTTP port (default: 8000)
-  -l domain    : enable TLS/HTTPS with Let's Encrypt for the given domain name.
-  -c path      : enable TLS/HTTPS use a predefined HTTPS certificate
-  -t port      : bind HTTPS port (default: 443, 4433 for -g)
+  -h            this help
+  -v            show version and exit
+  -g            enable TLS/HTTPS generate and use a self signed certificate
+  -p port       bind HTTP port (default: 8000)
+  -l domain     enable TLS/HTTPS with Let's Encrypt for the given domain name.
+  -c path       enable TLS/HTTPS use a predefined HTTPS certificate
+  -t port       bind HTTPS port (default: 443, 4433 for -g)
 
-Examples: simple-httpd                    start server. http://localhost:8000
-  or: simple-httpd -p 80                  use HTTP port 80. http://localhost
-  or: simple-httpd -g                     enable HTTPS generated certificate. https://localhost:4433
-  or: simple-httpd -p 80 -l example.com   enable HTTPS with Let's Encrypt. https://example.com
+Examples: 
+  simple-httpd                        start server. http://localhost:8000
+  simple-httpd -p 80                  use HTTP port 80. http://localhost
+  simple-httpd -g                     enable HTTPS generated certificate. https://localhost:4433
+  simple-httpd -p 80 -l example.com   enable HTTPS with Let's Encrypt. https://example.com
 `
 
 func main() {
@@ -312,7 +310,7 @@ func main() {
 	flag.Parse()
 
 	if vers {
-		fmt.Fprintf(os.Stdout, "simple-httpd version: %s\n", name+pathSeperator+version)
+		fmt.Fprintf(os.Stdout, "version: %s\n", version)
 		return
 	}
 	if tlsPort == -1 {
