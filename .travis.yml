@@ -1,8 +1,8 @@
 language: go
 
 go:
-  - 1.10
-  - master
+  - "1.10"
+  - "tip"
 
 # Skip the install step. Don't `go get` dependencies. Only build with the
 # code in vendor/
