@@ -3,6 +3,11 @@
 VERSION="0.1"
 ARCHS="darwin linux freebsd windows"
 
+if [ -z $1 ]; then 
+    echo "error: requires argument of [release|freebsd|darwin|linux|windows]"
+    exit 1
+fi
+
 if [ $1 == "release" ]; then
     echo "Generating simple-httpd release binaries..."
     for arch in ${ARCHS}; do

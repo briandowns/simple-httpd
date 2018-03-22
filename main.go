@@ -261,7 +261,7 @@ func homeDir() string {
 	return u.HomeDir
 }
 
-const usage = `simple-httpd version: %s
+const usage = `version: %s
 
 Usage: simple-httpd [-p port] [-l domain]
 
@@ -298,7 +298,7 @@ func main() {
 				break
 			}
 		}
-		fmt.Fprintf(w, usage, name+pathSeperator+version)
+		fmt.Fprintf(w, usage, version)
 	}
 
 	flag.BoolVar(&vers, "v", false, "")
