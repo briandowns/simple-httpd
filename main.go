@@ -88,7 +88,7 @@ func setHeaders(w http.ResponseWriter) {
 }
 
 // isIndexFile determines if the given file is one
-// of the accepted index files
+// of the accepted index files.
 func isIndexFile(file string) bool {
 	for _, s := range indexHTMLFiles {
 		if s == file {
@@ -133,7 +133,13 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// check if we have a file with spaces in the name and
+	// replace the %20 with an actual space.
 	escapedPath := parsedURL.EscapedPath()
+	if strings.Contains(escapedPath, "%20") {
+		escapedPath = strings.ReplaceAll(escapedPath, "%20", " ")
+	}
+
 	fullpath := filepath.Join(h.Directory, escapedPath[1:])
 
 	file, err := os.Open(fullpath)
@@ -281,6 +287,8 @@ Examples:
   simple-httpd -p 80 -l example.com   enable HTTPS with Let's Encrypt. https://example.com
 `
 
+const warmUpDelay = 10
+
 func main() {
 	var port int
 	var le string
@@ -376,11 +384,11 @@ func main() {
 				log.Fatal(err)
 			}
 		}()
-		time.Sleep(time.Millisecond * 10) // give a little warmup time to the TLS
+		time.Sleep(time.Millisecond * warmUpDelay) // give a little warmup time to the TLS
 		fmt.Printf("Serving HTTP on 0.0.0.0 port %v, HTTPS on port %v...\n", h.Port, tlsPort)
 	} else {
 		go func() {
-			time.Sleep(time.Millisecond * 10) // give a little warmup time to the HTTP
+			time.Sleep(time.Millisecond * warmUpDelay) // give a little warmup time to the HTTP
 			fmt.Printf("Serving HTTP on 0.0.0.0 port %v ...\n", h.Port)
 		}()
 	}
