@@ -1,6 +1,6 @@
 #!/bin/sh
 
-VERSION="0.2"
+VERSION="0.3"
 ARCHS="darwin linux freebsd windows"
 
 if [ -z $1 ]; then 

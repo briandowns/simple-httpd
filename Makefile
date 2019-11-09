@@ -2,20 +2,21 @@ LDFLAGS = -ldflags "-X main.gitSHA=$(shell git rev-parse HEAD)"
 
 OS := $(shell uname)
 
+.PHONY: build
 build: clean
 	go build $(LDFLAGS) -o simple-httpd
 
-deps:
-	dep ensure
-
+.PHONY: test
 test:
 	go test -v .
 
+.PHONY: clean
 clean:
 	go clean
 	rm -f simple-httpd
 	rm -f bin/*
 
+.PHONY: install
 install: clean
 ifeq ($(OS),Darwin)
 	./build.sh darwin
@@ -32,5 +33,7 @@ endif
 uninstall: 
 	rm -f /usr/local/bin/simple-httpd*
 
+.PHONY: release
 release:
 	./build.sh release
+

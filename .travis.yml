@@ -1,7 +1,7 @@
 language: go
 
 go:
-  - "1.10"
+  - "1.13"
   - "tip"
 
 # Skip the install step. Don't `go get` dependencies. Only build with the
@@ -35,3 +35,4 @@ script:
   - go test -v ./...                         # Run all the tests with the race detector enabled
   - go vet ./...                             # go vet is the official Go static analyzer
   - golint $(go list ./...) # one last linter
+
