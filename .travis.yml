@@ -25,14 +25,13 @@ notifications:
 # set -e enabled in bash.
 before_script:
   - GO_FILES=$(find . -iname '*.go' -type f | grep -v /vendor/) # All the .go files, excluding vendor/
-  - go get golang.org/x/lint
-  - go get github.com/fzipp/gocyclo
+  - go get golang.org/x/lint/golint
 
 # script always run to completion (set +e). All of these code checks are must haves
 # in a modern Go project.
 script:
   - test -z $(gofmt -s -l $GO_FILES)         # Fail if a .go file hasn't been formatted with gofmt
-  - go test -v ./...                         # Run all the tests with the race detector enabled
+  - go test -race -v ./...                   # Run all the tests with the race detector enabled
   - go vet ./...                             # go vet is the official Go static analyzer
-  - golint $(go list ./...) # one last linter
+  - golint $(go list ./...)                  # one last linter
 
