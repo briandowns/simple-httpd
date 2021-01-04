@@ -1,39 +1,46 @@
-LDFLAGS = -ldflags "-X main.gitSHA=$(shell git rev-parse HEAD)"
+GO = go
+
+BINDIR := bin
+BINARY := simple-httpd
+PREFIX := /usr/local
+
+VERSION = 0.3.0
+GIT_SHA = $(shell git rev-parse HEAD)
+LDFLAGS = -ldflags "-X main.gitSHA=$(GIT_SHA) -X main.version=$(VERSION) -X main.name=$(BINARY)"
 
 OS := $(shell uname)
 
-.PHONY: build
-build: clean
-	go build $(LDFLAGS) -o simple-httpd
+$(BINDIR)/$(BINARY): clean
+	$(GO) build $(LDFLAGS) -o $@
 
 .PHONY: test
 test:
-	go test -v .
+	$(GO) test -v .
 
 .PHONY: clean
 clean:
-	go clean
-	rm -f simple-httpd
-	rm -f bin/*
+	$(GO) clean
+	rm -f $(BINARY)
+	rm -f $(BINDIR)/*
 
 .PHONY: install
 install: clean
 ifeq ($(OS),Darwin)
-	./build.sh darwin
-	cp -f bin/simple-httpd-darwin /usr/local/bin/simple-httpd
+	./build.sh darwin $(BINARY) $(VERSION) $(GIT_SHA)
+	cp -f $(BINDIR)/$(BINARY)-darwin $(PREFIX)/$(BINDIR)/$(BINARY)
 endif 
 ifeq ($(OS),Linux)
-	./build.sh linux
-	cp -f bin/simple-httpd-linux /usr/local/bin/simple-httpd
+	./build.sh linux $(BINARY) $(VERSION) $(GIT_SHA)
+	cp -f $(BINDIR)/$(BINARY)-linux $(PREFIX)/$(BINDIR)/$(BINARY)
 endif
 ifeq ($(OS),FreeBSD)
-	./build.sh freebsd
-	cp -f bin/simple-httpd-freebsd /usr/local/bin/simple-httpd
+	./build.sh freebsd $(BINARY) $(VERSION) $(GIT_SHA)
+	cp -f $(BINDIR)/$(BINARY)-freebsd $(PREFIX)/$(BINDIR)/$(BINARY)
 endif
 uninstall: 
-	rm -f /usr/local/bin/simple-httpd*
+	rm -f $(PREFIX)/$(BINDIR)/$(BINARY)*
 
 .PHONY: release
-release:
-	./build.sh release
+release: clean
+	./build.sh release $(BINARY) $(VERSION) $(GIT_SHA)
 

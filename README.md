@@ -10,8 +10,8 @@ If you're looking for a full featured or even just more capable web server, take
 
 ## Features
 
-* HTTP2 with Let's Encrypt integration for automatic TLS if enabled
-* Automatic self signed certificate generation and use if enabled
+* HTTP2 with [Let's Encrypt](https://letsencrypt.org/) integration for automatic TLS, if enabled.
+* Automatic self signed certificate generation and use, if enabled.
 
 Certificates are cached in `${HOME}/.autocert` for reuse.
 

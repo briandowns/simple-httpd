@@ -1,44 +1,46 @@
 #!/bin/sh
 
-VERSION="0.3"
-ARCHS="darwin linux freebsd windows"
+OSs="darwin linux freebsd windows"
+ARCHs="arm64 amd64"
 
 if [ -z $1 ]; then 
     echo "error: requires argument of [release|freebsd|darwin|linux|windows]"
     exit 1
 fi
+OS=$1
 
-if [ $1 == "release" ]; then
-    echo "Generating simple-httpd release binaries..."
-    for arch in ${ARCHS}; do
-        GOOS=${arch} GOARCH=amd64 go build -v -ldflags "-X main.gitSHA=$(git rev-parse HEAD)" -o bin/simple-httpd-${arch}
-    done
+if [ -z $2 ]; then 
+    echo "error: requires argument of <bin name>"
+    exit 1
+fi
+BINARY=$2
+
+if [ -z $3 ]; then 
+    echo "error: requires argument of <semver>"
+    exit 1
+fi
+VERSION=$3
+
+if [ -z $4 ]; then 
+    echo "error: requires argument of <git sha>"
+    exit 1
 fi
 
-case "$1" in
-    "release") 
-        echo "Building release..."
-        for arch in ${ARCHS}; do
-            GOOS=${arch} GOARCH=amd64 go build -v -ldflags "-X main.gitSHA=$(git rev-parse HEAD)" -o bin/simple-httpd-${arch}
-            tar -czvf bin/simple-httpd-${arch}.tar.gz bin/simple-httpd-${arch}
+GIT_SHA=$4
+
+if [ ${OS} == "release" ]; then
+    echo "Generating ${BINARY} release binaries..."
+    for os in ${OSs}; do
+        for arch in ${ARCHs}; do
+            if [ ${arch} = "arm64" ] && [ ${os} = "windows" ]; then
+                continue
+            fi
+            if [ ${arch} = "arm64" ] &&  [ ${os} = "darwin" ]; then
+                continue
+            fi
+            GOOS=${os} GOARCH=${arch} go build -v -ldflags "-X main.gitSHA=${GIT_SHA} -X main.version=${VERSION} -X main.name=${BINARY}" -o bin/${BINARY}-${os}-${arch}
         done
-        ;;
-    "freebsd") 
-        echo "Building binary for FreeBSD..."
-        GOOS=freebsd GOARCH=amd64 go build -v -ldflags "-X main.gitSHA=$(git rev-parse HEAD)" -o bin/simple-httpd-freebsd
-        ;;
-    "darwin") 
-        echo "Building binary for Darwin..."
-        GOOS=darwin GOARCH=amd64 go build -v -ldflags "-X main.gitSHA=$(git rev-parse HEAD)" -o bin/simple-httpd-darwin
-        ;;
-    "linux") 
-        echo "Building binary for Linux..."
-        GOOS=linux GOARCH=amd64 go build -v -ldflags "-X main.gitSHA=$(git rev-parse HEAD)" -o bin/simple-httpd-linux
-        ;;
-    "windows") 
-        echo "Building binary for Windows..."
-        GOOS=windows GOARCH=amd64 go build -v -ldflags "-X main.gitSHA=$(git rev-parse HEAD)" -o bin/simple-httpd-windows.exe
-        ;;
-esac
+    done
+fi
 
 exit 0

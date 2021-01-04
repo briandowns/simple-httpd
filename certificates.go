@@ -19,7 +19,7 @@ import (
 )
 
 // namesAndAddresses generates a slice of hostnames and addresses
-// to generate certificates for
+// to generate certificates for.
 func namesAndAddresses() ([]string, error) {
 	var r []string
 
@@ -83,7 +83,7 @@ func pemBlockForKey(priv interface{}) *pem.Block {
 }
 
 // generateCertificates will generate a certificate and key and save them to
-// the given paths
+// the given paths.
 func generateCertificates(certPath, keyPath string) error {
 	var priv interface{}
 	var err error
@@ -151,9 +151,11 @@ func generateCertificates(certPath, keyPath string) error {
 	if err != nil {
 		return err
 	}
+
 	if err := pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: derBytes}); err != nil {
 		return err
 	}
+
 	if err := certOut.Close(); err != nil {
 		return err
 	}
@@ -162,8 +164,10 @@ func generateCertificates(certPath, keyPath string) error {
 	if err != nil {
 		return err
 	}
+
 	if err := pem.Encode(keyOut, pemBlockForKey(priv)); err != nil {
 		return err
 	}
+
 	return keyOut.Close()
 }
