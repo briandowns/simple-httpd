@@ -65,17 +65,6 @@ type httpServer struct {
 	template  *template.Template
 }
 
-// requestData holds data about the request for logging.
-type requestData struct {
-	Timestamp  string `json:"timestamp,omitempty"`
-	Method     string `json:"method,omitempty"`
-	RemoteAddr string `json:"remote_addr,omitempty"`
-	Path       string `json:"path,omitempty"`
-	Status     int    `json:"status,omitempty"`
-	UserAgent  string `json:"user_agent,omitempty"`
-	Error      string `json:"error,omitempty"`
-}
-
 // setHeaders sets the base headers for all requests.
 func setHeaders(w http.ResponseWriter) {
 	w.Header().Set("Server", name+pathSeperator+version)
@@ -111,26 +100,15 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		}
 	}()
 
-	rd := requestData{
-		Timestamp:  time.Now().Format("2006-01-02 15:04:05"),
-		RemoteAddr: req.RemoteAddr,
-		Method:     req.Method,
-		Path:       req.RequestURI,
-		UserAgent:  req.UserAgent(),
-	}
-
 	parsedURL, err := url.Parse(req.RequestURI)
 	if err != nil {
-		rd.Error = err.Error()
-		rd.Status = http.StatusInternalServerError
-		fmt.Println(rd)
 		log.Error("msg",
-			zap.String("method", rd.Method),
-			zap.String("remote_addr", rd.RemoteAddr),
-			zap.String("path", rd.Path),
-			zap.String("user_agent", rd.UserAgent),
-			zap.Int("status", rd.Status),
-			zap.Error(errors.New(rd.Error)))
+			zap.String("method", req.Method),
+			zap.String("remote_addr", req.RemoteAddr),
+			zap.String("path", req.RequestURI),
+			zap.String("user_agent", req.UserAgent()),
+			zap.Int("status", http.StatusInternalServerError),
+			zap.Error(err))
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -146,15 +124,13 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 	file, err := os.Open(fullpath)
 	if err != nil {
-		rd.Error = err.Error()
-		rd.Status = http.StatusNotFound
 		log.Error("msg",
-			zap.String("method", rd.Method),
-			zap.String("remote_addr", rd.RemoteAddr),
-			zap.String("path", rd.Path),
-			zap.String("user_agent", rd.UserAgent),
-			zap.Int("status", rd.Status),
-			zap.Error(errors.New(rd.Error)))
+			zap.String("method", req.Method),
+			zap.String("remote_addr", req.RemoteAddr),
+			zap.String("path", req.RequestURI),
+			zap.String("user_agent", req.UserAgent()),
+			zap.Int("status", http.StatusInternalServerError),
+			zap.Error(err))
 		http.NotFound(w, req)
 		return
 	}
@@ -162,15 +138,13 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 	stat, err := file.Stat()
 	if err != nil {
-		rd.Error = err.Error()
-		rd.Status = http.StatusInternalServerError
 		log.Error("msg",
-			zap.String("method", rd.Method),
-			zap.String("remote_addr", rd.RemoteAddr),
-			zap.String("path", rd.Path),
-			zap.String("user_agent", rd.UserAgent),
-			zap.Int("status", rd.Status),
-			zap.Error(errors.New(rd.Error)))
+			zap.String("method", req.Method),
+			zap.String("remote_addr", req.RemoteAddr),
+			zap.String("path", req.RequestURI),
+			zap.String("user_agent", req.UserAgent()),
+			zap.Int("status", http.StatusInternalServerError),
+			zap.Error(err))
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -181,27 +155,24 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		if escapedPath[len(escapedPath)-1] != '/' {
 			// Redirect all directory requests to ensure they end with a slash
 			http.Redirect(w, req, escapedPath+"/", http.StatusFound)
-			rd.Status = http.StatusFound
-			log.Info("msg",
-				zap.String("method", rd.Method),
-				zap.String("remote_addr", rd.RemoteAddr),
-				zap.String("path", rd.Path),
-				zap.String("user_agent", rd.UserAgent),
-				zap.Int("status", rd.Status))
+			log.Error("msg",
+				zap.String("method", req.Method),
+				zap.String("remote_addr", req.RemoteAddr),
+				zap.String("path", req.RequestURI),
+				zap.String("user_agent", req.UserAgent()),
+				zap.Int("status", http.StatusFound))
 			return
 		}
 
 		contents, err := file.Readdir(-1)
 		if err != nil {
-			rd.Status = http.StatusInternalServerError
-			rd.Error = err.Error()
 			log.Error("msg",
-				zap.String("method", rd.Method),
-				zap.String("remote_addr", rd.RemoteAddr),
-				zap.String("path", rd.Path),
-				zap.String("user_agent", rd.UserAgent),
-				zap.Int("status", rd.Status),
-				zap.Error(errors.New(rd.Error)))
+				zap.String("method", req.Method),
+				zap.String("remote_addr", req.RemoteAddr),
+				zap.String("path", req.RequestURI),
+				zap.String("user_agent", req.UserAgent()),
+				zap.Int("status", http.StatusInternalServerError),
+				zap.Error(err))
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -222,14 +193,12 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 					return
 				}
 
-				rd.Status = http.StatusOK
 				log.Info("request",
-					zap.String("method", rd.Method),
-					zap.String("remote_addr", rd.RemoteAddr),
-					zap.String("path", rd.Path),
-					zap.String("user_agent", rd.UserAgent),
-					zap.Int("status", rd.Status),
-					zap.Error(errors.New(rd.Error)))
+					zap.String("method", req.Method),
+					zap.String("remote_addr", req.RemoteAddr),
+					zap.String("path", req.RequestURI),
+					zap.String("user_agent", req.UserAgent()),
+					zap.Int("status", http.StatusOK))
 				return
 			}
 			file := Data{
@@ -244,17 +213,17 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			files = append(files, file)
 		}
 
-		rd.Status = http.StatusOK
-
 		w.Header().Set("Content-type", "text/html; charset=UTF-8")
 
 		if err := h.template.Execute(w, map[string]interface{}{
 			"files":           files,
-			"version":         gitSHA,
+			"gitSha":          gitSHA,
+			"version":         version,
 			"port":            h.Port,
-			"relativePath":    escapedPath,
+			"relativePath":    fullpath,
 			"goVersion":       runtime.Version(),
 			"lang":            lang,
+			"name":            name,
 			"directoryText":   directoryText,
 			"parentDirectory": path.Clean(escapedPath + "/.."),
 		}); err != nil {
@@ -263,11 +232,11 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		}
 
 		log.Info("request",
-			zap.String("method", rd.Method),
-			zap.String("remote_addr", rd.RemoteAddr),
-			zap.String("path", rd.Path),
-			zap.String("user_agent", rd.UserAgent),
-			zap.Int("status", rd.Status))
+			zap.String("method", req.Method),
+			zap.String("remote_addr", req.RemoteAddr),
+			zap.String("path", req.RequestURI),
+			zap.String("user_agent", req.UserAgent()),
+			zap.Int("status", http.StatusOK))
 		return
 	}
 
@@ -283,13 +252,12 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	rd.Status = http.StatusOK
 	log.Info("request",
-		zap.String("method", rd.Method),
-		zap.String("remote_addr", rd.RemoteAddr),
-		zap.String("path", rd.Path),
-		zap.String("user_agent", rd.UserAgent),
-		zap.Int("status", rd.Status))
+		zap.String("method", req.Method),
+		zap.String("remote_addr", req.RemoteAddr),
+		zap.String("path", req.RequestURI),
+		zap.String("user_agent", req.UserAgent()),
+		zap.Int("status", http.StatusOK))
 }
 
 const usage = `version: %s
@@ -380,7 +348,7 @@ func main() {
 	flag.Parse()
 
 	if vers {
-		fmt.Fprintf(os.Stdout, "version: %s\n", version)
+		fmt.Fprintf(os.Stdout, "version: %s - git sha: %s\n", version, gitSHA)
 		return
 	}
 
@@ -489,7 +457,7 @@ const htmlTemplate = `
 <html lang="{{.lang}}">
   <head>
     <meta charset="utf-8">
-    <title>simple-httpd</title>
+    <title>{{.name}}</title>
 	<style>
 		table, td {
     	border: 1px;
@@ -521,6 +489,6 @@ const htmlTemplate = `
   </body>
   <hr>
   <footer>
-	<p>simple-httpd - {{.version}} / {{.goVersion}}</p>
+	<p>{{.name}} {{.version}} - {{.gitSha}} / {{.goVersion}}</p>
   </footer>
 </html>`
