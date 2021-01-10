@@ -4,7 +4,7 @@ BINDIR := bin
 BINARY := simple-httpd
 PREFIX := /usr/local
 
-VERSION = 0.3.0
+VERSION = v0.4.0
 GIT_SHA = $(shell git rev-parse HEAD)
 LDFLAGS = -ldflags "-X main.gitSHA=$(GIT_SHA) -X main.version=$(VERSION) -X main.name=$(BINARY)"
 
