@@ -148,7 +148,7 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		rd.Error = err.Error()
 		rd.Status = http.StatusNotFound
-		log.Error("",
+		log.Error("msg",
 			zap.String("method", rd.Method),
 			zap.String("remote_addr", rd.RemoteAddr),
 			zap.String("path", rd.Path),
@@ -182,13 +182,12 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			// Redirect all directory requests to ensure they end with a slash
 			http.Redirect(w, req, escapedPath+"/", http.StatusFound)
 			rd.Status = http.StatusFound
-			log.Error("msg",
+			log.Info("msg",
 				zap.String("method", rd.Method),
 				zap.String("remote_addr", rd.RemoteAddr),
 				zap.String("path", rd.Path),
 				zap.String("user_agent", rd.UserAgent),
-				zap.Int("status", rd.Status),
-				zap.Error(errors.New(rd.Error)))
+				zap.Int("status", rd.Status))
 			return
 		}
 
