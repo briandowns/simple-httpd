@@ -305,7 +305,7 @@ Options:
     -e domain     enable TLS/HTTPS with Let's Encrypt for the given domain name
     -c path       enable TLS/HTTPS with a predefined HTTPS certificate
     -t port       bind HTTPS port (default: 443, 4433 for -g)
-    -l lang       language code to for UI (default: en)
+    -l lang       language code (ISO 639-1) to for UI. (default: en)
 
 Examples: 
     %[2]s                        start server. http://localhost:8000
@@ -340,7 +340,7 @@ func setDirectoryText(alng string) error {
 	case "en", "":
 		directoryText = "Directory listing for"
 	default:
-		return fmt.Errorf("error: invalid language: %s\n", lang)
+		return fmt.Errorf("error: invalid language: %s", lang)
 	}
 	return nil
 }
@@ -487,7 +487,7 @@ func main() {
 
 const htmlTemplate = `
 <!DOCTYPE html>
-<html lang=".lang">
+<html lang="{{.lang}}">
   <head>
     <meta charset="utf-8">
     <title>simple-httpd</title>
