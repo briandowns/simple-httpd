@@ -46,6 +46,8 @@ const (
 	defaultPort = 8000
 )
 
+var directoryText string
+
 // Data holds the data passed to the template engine.
 type Data struct {
 	Name         string
@@ -65,14 +67,13 @@ type httpServer struct {
 
 // requestData holds data about the request for logging.
 type requestData struct {
-	Timestamp   string `json:"timestamp,omitempty"`
-	Method      string `json:"method,omitempty"`
-	HTTPVersion string `json:"http_version,omitempty"`
-	RemoteAddr  string `json:"remote_addr,omitempty"`
-	Path        string `json:"path,omitempty"`
-	Status      int    `json:"status,omitempty"`
-	UserAgent   string `json:"user_agent,omitempty"`
-	Error       string `json:"error,omitempty"`
+	Timestamp  string `json:"timestamp,omitempty"`
+	Method     string `json:"method,omitempty"`
+	RemoteAddr string `json:"remote_addr,omitempty"`
+	Path       string `json:"path,omitempty"`
+	Status     int    `json:"status,omitempty"`
+	UserAgent  string `json:"user_agent,omitempty"`
+	Error      string `json:"error,omitempty"`
 }
 
 // setHeaders sets the base headers for all requests.
@@ -129,7 +130,6 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			zap.String("path", rd.Path),
 			zap.String("user_agent", rd.UserAgent),
 			zap.Int("status", rd.Status),
-			zap.String("http_version", rd.HTTPVersion),
 			zap.Error(errors.New(rd.Error)))
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -148,13 +148,12 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		rd.Error = err.Error()
 		rd.Status = http.StatusNotFound
-		log.Error("msg",
+		log.Error("",
 			zap.String("method", rd.Method),
 			zap.String("remote_addr", rd.RemoteAddr),
 			zap.String("path", rd.Path),
 			zap.String("user_agent", rd.UserAgent),
 			zap.Int("status", rd.Status),
-			zap.String("http_version", rd.HTTPVersion),
 			zap.Error(errors.New(rd.Error)))
 		http.NotFound(w, req)
 		return
@@ -171,7 +170,6 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			zap.String("path", rd.Path),
 			zap.String("user_agent", rd.UserAgent),
 			zap.Int("status", rd.Status),
-			zap.String("http_version", rd.HTTPVersion),
 			zap.Error(errors.New(rd.Error)))
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -190,7 +188,6 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 				zap.String("path", rd.Path),
 				zap.String("user_agent", rd.UserAgent),
 				zap.Int("status", rd.Status),
-				zap.String("http_version", rd.HTTPVersion),
 				zap.Error(errors.New(rd.Error)))
 			return
 		}
@@ -205,7 +202,6 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 				zap.String("path", rd.Path),
 				zap.String("user_agent", rd.UserAgent),
 				zap.Int("status", rd.Status),
-				zap.String("http_version", rd.HTTPVersion),
 				zap.Error(errors.New(rd.Error)))
 			w.WriteHeader(http.StatusInternalServerError)
 			return
@@ -234,7 +230,6 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 					zap.String("path", rd.Path),
 					zap.String("user_agent", rd.UserAgent),
 					zap.Int("status", rd.Status),
-					zap.String("http_version", rd.HTTPVersion),
 					zap.Error(errors.New(rd.Error)))
 				return
 			}
@@ -260,6 +255,8 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			"port":            h.Port,
 			"relativePath":    escapedPath,
 			"goVersion":       runtime.Version(),
+			"lang":            lang,
+			"directoryText":   directoryText,
 			"parentDirectory": path.Clean(escapedPath + "/.."),
 		}); err != nil {
 			log.Error("msg", zap.Error(err))
@@ -271,9 +268,7 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			zap.String("remote_addr", rd.RemoteAddr),
 			zap.String("path", rd.Path),
 			zap.String("user_agent", rd.UserAgent),
-			zap.Int("status", rd.Status),
-			zap.String("http_version", rd.HTTPVersion),
-			zap.Error(errors.New(rd.Error)))
+			zap.Int("status", rd.Status))
 		return
 	}
 
@@ -285,6 +280,7 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 	if _, err := io.Copy(w, file); err != nil {
 		log.Error("msg", zap.Error(err))
+
 		return
 	}
 
@@ -294,32 +290,31 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		zap.String("remote_addr", rd.RemoteAddr),
 		zap.String("path", rd.Path),
 		zap.String("user_agent", rd.UserAgent),
-		zap.Int("status", rd.Status),
-		zap.String("http_version", rd.HTTPVersion),
-		zap.Error(errors.New(rd.Error)))
+		zap.Int("status", rd.Status))
 }
 
 const usage = `version: %s
 
-Usage: %[2]s [-p port] [-l domain]
+Usage: %[2]s [-p port] [-e domain]
 
 Options:
-  -h            this help
-  -v            show version and exit
-  -g            enable TLS/HTTPS generate and use a self signed certificate
-  -p port       bind HTTP port (default: 8000)
-  -l domain     enable TLS/HTTPS with Let's Encrypt for the given domain name.
-  -c path       enable TLS/HTTPS use a predefined HTTPS certificate
-  -t port       bind HTTPS port (default: 443, 4433 for -g)
+    -h            help
+    -v            show version and exit
+    -g            enable TLS/HTTPS generate and use a self signed certificate
+    -p port       bind HTTP port (default: 8000)
+    -e domain     enable TLS/HTTPS with Let's Encrypt for the given domain name
+    -c path       enable TLS/HTTPS with a predefined HTTPS certificate
+    -t port       bind HTTPS port (default: 443, 4433 for -g)
+    -l lang       language code to for UI (default: en)
 
 Examples: 
-  %[2]s                        start server. http://localhost:8000
-  %[2]s -p 80                  use HTTP port 80. http://localhost
-  %[2]s -g                     enable HTTPS generated certificate. https://localhost:4433
-  %[2]s -p 80 -l example.com   enable HTTPS with Let's Encrypt. https://example.com
+    %[2]s                        start server. http://localhost:8000
+    %[2]s -p 80                  use HTTP port 80. http://localhost
+    %[2]s -g                     enable HTTPS generated certificate. https://localhost:4433
+    %[2]s -p 80 -e example.com   enable HTTPS with Let's Encrypt. https://example.com
 `
 
-const warmUpDelay = 10
+const warmUpDelay = time.Millisecond * 10
 
 var (
 	port    int
@@ -328,9 +323,27 @@ var (
 	tlsPort int
 	tlsCert string
 	vers    bool
+	lang    string
 )
 
 var log *zap.Logger
+
+// setDirectoryText sets the text for the directory listing.
+func setDirectoryText(alng string) error {
+	switch lang {
+	case "it":
+		directoryText = "L'elenco di directory per"
+	case "es":
+		directoryText = "Listado de directorio para"
+	case "ga":
+		directoryText = "Comhadlann liostú do"
+	case "en", "":
+		directoryText = "Directory listing for"
+	default:
+		return fmt.Errorf("error: invalid language: %s\n", lang)
+	}
+	return nil
+}
 
 func main() {
 	var err error
@@ -343,7 +356,8 @@ func main() {
 
 	pwd, err := os.Getwd()
 	if err != nil {
-		log.Fatal("msg", zap.Error(err))
+		fmt.Println(err)
+		os.Exit(1)
 	}
 
 	flag.Usage = func() {
@@ -359,10 +373,11 @@ func main() {
 
 	flag.BoolVar(&vers, "v", false, "")
 	flag.IntVar(&port, "p", defaultPort, "")
-	flag.StringVar(&le, "l", "", "")
+	flag.StringVar(&le, "e", "", "")
 	flag.StringVar(&tlsCert, "c", "", "")
 	flag.BoolVar(&gs, "g", false, "")
 	flag.IntVar(&tlsPort, "t", -1, "")
+	flag.StringVar(&lang, "l", "en", "")
 	flag.Parse()
 
 	if vers {
@@ -376,6 +391,11 @@ func main() {
 		} else {
 			tlsPort = 443
 		}
+	}
+
+	if err := setDirectoryText(lang); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
 	}
 
 	h := &httpServer{
@@ -394,13 +414,15 @@ func main() {
 
 		u, err := user.Current()
 		if err != nil {
-			log.Fatal("msg", zap.Error(err))
+			fmt.Println(err)
+			os.Exit(1)
 		}
 
 		switch {
 		case tlsCert != "":
 			if gs {
-				log.Fatal("msg", zap.Error(errors.New("cannot specify both -tls-cert and -g")))
+				fmt.Println(errors.New("cannot specify both -tls-cert and -g"))
+				os.Exit(1)
 			}
 			certPath, keyPath = tlsCert, tlsCert // assume a single PEM format
 		case gs:
@@ -408,17 +430,20 @@ func main() {
 			certPath = filepath.Join(hd, certDir, cert)
 			keyPath = filepath.Join(hd, certDir, key)
 			if err := generateCertificates(certPath, keyPath); err != nil {
-				log.Fatal("msg", zap.Error(err))
+				fmt.Println(err)
+				os.Exit(1)
 			}
 		default:
 			if tlsPort != 443 {
-				log.Fatal("msg", zap.Int("invalid -tls-port. It must be 443 when LetsEncrypt is specified", tlsPort))
+				fmt.Printf("invalid -tls-port %d. It must be 443 when LetsEncrypt is specified\n", tlsPort)
+				os.Exit(1)
 			}
 
 			cacheDir := filepath.Join(u.HomeDir, certDir)
 
 			if err := os.MkdirAll(cacheDir, 0700); err != nil {
-				log.Fatal("msg", zap.Error(fmt.Errorf("could not create cache directory: %s", err)))
+				fmt.Printf("could not create cache directory: %s\n", cacheDir)
+				os.Exit(1)
 			}
 
 			certManager := autocert.Manager{
@@ -448,11 +473,11 @@ func main() {
 			}
 		}()
 
-		time.Sleep(time.Millisecond * warmUpDelay) // give a little warmup time to the TLS
+		time.Sleep(warmUpDelay) // give a little warmup time to the TLS
 		log.Info("msg", zap.String("Serving HTTP on", "0.0.0.0"), zap.Int("port", h.Port), zap.Int("https", tlsPort))
 	} else {
 		go func() {
-			time.Sleep(time.Millisecond * warmUpDelay) // give a little warmup time to the HTTP
+			time.Sleep(warmUpDelay) // give a little warmup time to the HTTP
 			log.Info("msg", zap.String("Serving HTTP on", "0.0.0.0"), zap.Int("port", h.Port))
 		}()
 	}
@@ -462,7 +487,7 @@ func main() {
 
 const htmlTemplate = `
 <!DOCTYPE html>
-<html lang="en">
+<html lang=".lang">
   <head>
     <meta charset="utf-8">
     <title>simple-httpd</title>
@@ -473,7 +498,7 @@ const htmlTemplate = `
 	</style>
   </head>
   <body>
-    <h2>Directory listing for {{.relativePath}}</h2>
+    <h2>{{.directoryText}} {{.relativePath}}</h2>
 	<hr>
     <table>
 	  <tr>
@@ -497,6 +522,6 @@ const htmlTemplate = `
   </body>
   <hr>
   <footer>
-    <p>simple-httpd - {{.version}} / {{.goVersion}}</p>
+	<p>simple-httpd - {{.version}} / {{.goVersion}}</p>
   </footer>
 </html>`

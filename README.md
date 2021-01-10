@@ -12,6 +12,7 @@ If you're looking for a full featured or even just more capable web server, take
 
 * HTTP2 with [Let's Encrypt](https://letsencrypt.org/) integration for automatic TLS, if enabled.
 * Automatic self signed certificate generation and use, if enabled.
+* Multiple language support: English, Italian, Spanish, Irish
 
 Certificates are cached in `${HOME}/.autocert` for reuse.
 
@@ -60,6 +61,11 @@ Generate a self signed certificate and run the server
 ```
 simple-httpd -g
 ```
+
+Run server in Spanish
+
+```
+simple-httpd -l es
 
 ## Contributions
 
